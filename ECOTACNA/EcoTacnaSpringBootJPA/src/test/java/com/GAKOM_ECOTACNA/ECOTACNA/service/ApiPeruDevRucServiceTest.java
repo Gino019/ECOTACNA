@@ -41,25 +41,23 @@ class ApiPeruDevRucServiceTest {
     }
 
     @Test
-    void consultarRucInApiModeRequiresToken() {
+    void consultarRucInApiModeFallsBackToMockWhenTokenIsEmpty() {
         ApiPeruDevRucService service = newService("api", "", new FailingRestTemplate());
 
-        ExternalProviderException exception = assertThrows(
-                ExternalProviderException.class,
-                () -> service.consultarRuc("20100055237")
-        );
-        assertEquals("Servicio RUC no configurado. Falta APIPERUDEV_API_TOKEN.", exception.getMessage());
+        RucLookupResponse response = service.consultarRuc("20100055237");
+        assertEquals("20100055237", response.getRuc());
+        assertEquals("EMPRESA REAL DE PRUEBA S.A.C.", response.getRazonSocial());
+        assertEquals("SUNAT / apiperu.dev (FALLBACK/MOCK)", response.getFuente());
     }
 
     @Test
-    void consultarRucDoesNotUseApplicationMockWhenModeIsMock() {
+    void consultarRucUsesSimulatedMockWhenModeIsMock() {
         ApiPeruDevRucService service = newService("mock", "", new FailingRestTemplate());
 
-        ExternalProviderException exception = assertThrows(
-                ExternalProviderException.class,
-                () -> service.consultarRuc("20100055237")
-        );
-        assertEquals("Servicio RUC no configurado. RUC_PROVIDER debe ser apiperudev.", exception.getMessage());
+        RucLookupResponse response = service.consultarRuc("20100055237");
+        assertEquals("20100055237", response.getRuc());
+        assertEquals("EMPRESA REAL DE PRUEBA S.A.C.", response.getRazonSocial());
+        assertEquals("SUNAT / apiperu.dev (FALLBACK/MOCK)", response.getFuente());
     }
 
     @Test

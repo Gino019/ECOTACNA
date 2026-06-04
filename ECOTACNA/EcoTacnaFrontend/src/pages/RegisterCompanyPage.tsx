@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import ReCAPTCHA from "react-google-recaptcha";
+import PuzzleCaptcha from "@/components/PuzzleCaptcha";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,8 +35,7 @@ export default function RegisterCompanyPage() {
   const [auxiliaryData, setAuxiliaryData] = useState<AuxiliaryFormData | null>(null);
 
   const [captchaToken, setCaptchaToken] = useState("");
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
-  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Lcl7wYtAAAAAEcjpZVi_ECqXcfCKHiu2To_x3ev";
+  const [captchaKey, setCaptchaKey] = useState(0);
 
 
   // Payment states
@@ -167,8 +166,8 @@ export default function RegisterCompanyPage() {
       return;
     }
 
-    if (siteKey && !captchaToken) {
-      toast.error("Completa el reCAPTCHA para continuar.");
+    if (!captchaToken) {
+      toast.error("Completa el captcha para continuar.");
       return;
     }
 
@@ -210,10 +209,8 @@ export default function RegisterCompanyPage() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || "Error en el registro";
       toast.error(errorMsg);
-      if (siteKey) {
-        recaptchaRef.current?.reset();
-        setCaptchaToken("");
-      }
+      setCaptchaKey(prev => prev + 1);
+      setCaptchaToken("");
     } finally {
       setIsLoading(false);
     }
@@ -405,17 +402,12 @@ export default function RegisterCompanyPage() {
           {/* Auxiliary form */}
           <AuxiliaryCompanyDataForm onSubmit={handleAuxiliarySubmit} isLoading={isLoading} />
 
-          {siteKey && (
-            <div className="flex justify-center py-4">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={siteKey}
-                onChange={(token) => setCaptchaToken(token || "")}
-                onExpired={() => setCaptchaToken("")}
-                onErrored={() => setCaptchaToken("")}
-              />
-            </div>
-          )}
+          <div className="flex justify-center py-4">
+            <PuzzleCaptcha
+              key={captchaKey}
+              onVerify={setCaptchaToken}
+            />
+          </div>
         </div>
       )}
     </Card>
