@@ -173,7 +173,7 @@ public class BackendIntegrationTest {
 
         // 4. Confirmar
         request = pickupRequestService.confirmPickup(request.getId(), recolectora, recolectorUser, new BigDecimal("490"), "127.0.0.1");
-        assertEquals(PickupRequestStatus.RECOGIDO, request.getStatus());
+        assertEquals(PickupRequestStatus.COMPLETADO, request.getStatus());
         assertEquals(new BigDecimal("490"), request.getActualVolumeLiters());
     }
 

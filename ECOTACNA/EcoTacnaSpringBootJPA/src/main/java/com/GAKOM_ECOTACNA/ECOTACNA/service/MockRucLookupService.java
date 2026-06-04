@@ -2,12 +2,10 @@ package com.GAKOM_ECOTACNA.ECOTACNA.service;
 
 import com.GAKOM_ECOTACNA.ECOTACNA.dto.RucLookupResponse;
 import com.GAKOM_ECOTACNA.ECOTACNA.exception.BusinessException;
-import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@Service
 public class MockRucLookupService implements RucLookupService {
 
     private final Map<String, RucLookupResponse> mockData;
