@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useRef } from "react";
-import ReCAPTCHA from "react-google-recaptcha";
+import { useState } from "react";
 import { ArrowLeft, ArrowRight, Building2, Mail, ShieldCheck, Sparkles, Truck, Lock } from "lucide-react";
+import PuzzleCaptcha from "@/components/PuzzleCaptcha";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,11 +24,8 @@ const Login = () => {
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [captchaTokenAdmin, setCaptchaTokenAdmin] = useState("");
   const [captchaTokenUser, setCaptchaTokenUser] = useState("");
-  
-  const recaptchaAdminRef = useRef<ReCAPTCHA>(null);
-  const recaptchaUserRef = useRef<ReCAPTCHA>(null);
-  
-  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Lcl7wYtAAAAAEcjpZVi_ECqXcfCKHiu2To_x3ev";
+  const [captchaKeyAdmin, setCaptchaKeyAdmin] = useState(0);
+  const [captchaKeyUser, setCaptchaKeyUser] = useState(0);
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +47,7 @@ const Login = () => {
       }
     } catch (error: any) {
       toast.error(error.message || "Error de credenciales");
-      recaptchaAdminRef.current?.reset();
+      setCaptchaKeyAdmin(prev => prev + 1);
       setCaptchaTokenAdmin("");
     } finally {
       setIsLoadingAdmin(false);
@@ -78,7 +75,7 @@ const Login = () => {
       }
     } catch (error: any) {
       toast.error(error.message || "Error de credenciales");
-      recaptchaUserRef.current?.reset();
+      setCaptchaKeyUser(prev => prev + 1);
       setCaptchaTokenUser("");
     } finally {
       setIsLoadingUser(false);
@@ -110,13 +107,10 @@ const Login = () => {
               <Input type="email" placeholder="Correo institucional" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="bg-primary-foreground text-foreground border-0 h-12" required />
               <Input type="password" placeholder="Contraseña" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="bg-primary-foreground text-foreground border-0 h-12" required />
               
-              <div className="flex justify-center py-2 bg-white rounded-xl border border-emerald-100 shadow-sm p-2 w-full">
-                <ReCAPTCHA 
-                  ref={recaptchaAdminRef}
-                  sitekey={siteKey} 
-                  onChange={(token) => setCaptchaTokenAdmin(token || "")}
-                  onExpired={() => setCaptchaTokenAdmin("")} 
-                  onErrored={() => setCaptchaTokenAdmin("")} 
+              <div className="flex justify-center py-2 w-full">
+                <PuzzleCaptcha 
+                  key={captchaKeyAdmin}
+                  onVerify={setCaptchaTokenAdmin}
                 />
               </div>
 
@@ -170,13 +164,10 @@ const Login = () => {
               </div>
             </div>
             
-            <div className="flex justify-center py-2 bg-white rounded-xl border shadow-sm p-2 w-full">
-              <ReCAPTCHA 
-                ref={recaptchaUserRef}
-                sitekey={siteKey} 
-                onChange={(token) => setCaptchaTokenUser(token || "")}
-                onExpired={() => setCaptchaTokenUser("")} 
-                onErrored={() => setCaptchaTokenUser("")} 
+            <div className="flex justify-center py-2 w-full">
+              <PuzzleCaptcha 
+                key={captchaKeyUser}
+                onVerify={setCaptchaTokenUser}
               />
             </div>
 

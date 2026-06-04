@@ -48,7 +48,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health", "/api/health/**").permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/public/plans", "/api/public/ruc/**", "/api/public/checkout/**", "/api/webhooks/culqi").permitAll()
+                        .requestMatchers("/api/public/plans", "/api/public/ruc/**", "/api/public/checkout/**", "/api/webhooks/culqi", "/api/public/captcha/**").permitAll()
                         .requestMatchers("/", "/index.html", "/dashboard.html", "/css/**", "/js/**").permitAll()
 
                         .requestMatchers("/api/empresa/**").hasRole("GENERADOR")

@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import ReCAPTCHA from "react-google-recaptcha";
+import PuzzleCaptcha from "@/components/PuzzleCaptcha";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,8 +36,7 @@ export default function Registro() {
   const [referencia, setReferencia] = useState("");
 
   const [captchaToken, setCaptchaToken] = useState("");
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
-  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Lcl7wYtAAAAAEcjpZVi_ECqXcfCKHiu2To_x3ev";
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   const handleLookup = async () => {
     if (!ruc || ruc.length !== 11) {
@@ -77,8 +76,8 @@ export default function Registro() {
     // I will auto-generate the password to RUC for now, or just default it to RUC.
     const finalPassword = ruc;
 
-    if (siteKey && !captchaToken) {
-      toast.error("Completa el reCAPTCHA para continuar");
+    if (!captchaToken) {
+      toast.error("Completa el rompecabezas de verificación para continuar");
       return;
     }
 
@@ -115,10 +114,8 @@ export default function Registro() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || "Error en el registro";
       toast.error(errorMsg);
-      if (siteKey) {
-        recaptchaRef.current?.reset();
-        setCaptchaToken("");
-      }
+      setCaptchaKey(prev => prev + 1);
+      setCaptchaToken("");
     } finally {
       setIsLoading(false);
     }
@@ -250,17 +247,12 @@ export default function Registro() {
             </p>
           </div>
 
-          {siteKey && (
-            <div className="flex justify-center mb-6">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={siteKey}
-                onChange={(token) => setCaptchaToken(token || "")}
-                onExpired={() => setCaptchaToken("")}
-                onErrored={() => setCaptchaToken("")}
-              />
-            </div>
-          )}
+          <div className="flex justify-center mb-6">
+            <PuzzleCaptcha
+              key={captchaKey}
+              onVerify={setCaptchaToken}
+            />
+          </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
             <Button variant="ghost" className="font-semibold text-gray-600">
