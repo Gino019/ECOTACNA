@@ -1,0 +1,60 @@
+# Implementación de CAPTCHA en login - EcoTacna
+
+Necesito implementar CAPTCHA únicamente en el login de EcoTacna usando Cloudflare Turnstile.
+
+Antes de modificar código, realiza obligatoriamente lo siguiente:
+
+1. Lee los seis archivos `.md` principales del proyecto.
+2. Usa esos seis `.md` como reglas obligatorias de arquitectura, estilo, nombres, estructura, buenas prácticas y forma de programar.
+3. No tomes los demás `.md` como fuente principal; solo úsalos como referencia secundaria si ayudan.
+4. No cambies módulos ajenos al login.
+5. No refactorices pantallas completas.
+6. No modifiques lógica de negocio de recojo, reportes, usuarios, restaurantes, recolectores ni administración salvo lo estrictamente necesario para proteger el login.
+
+## Objetivo
+
+Agregar una verificación CAPTCHA en los formularios de login:
+
+- Login administrador.
+- Login empresa.
+- Login recolector.
+
+El CAPTCHA debe estar solo en login. No implementarlo en registro, solicitudes, reportes ni pantallas internas.
+
+## Proveedor elegido
+
+Usar Cloudflare Turnstile.
+
+La implementación debe seguir este flujo:
+
+1. El frontend muestra el widget Turnstile.
+2. El usuario completa la verificación.
+3. El frontend obtiene un `captchaToken`.
+4. El frontend envía el `captchaToken` junto con las credenciales al backend.
+5. El backend valida el token usando Cloudflare Siteverify.
+6. Si el token es válido, recién se validan las credenciales.
+7. Si el token es inválido, faltante, expirado o duplicado, el login debe rechazarse.
+
+## Backend
+
+Implementar primero el backend.
+
+Crear o adaptar un servicio con responsabilidad única:
+
+`CaptchaService`
+
+Este servicio debe:
+
+- Leer `TURNSTILE_SECRET_KEY` desde variables de entorno o configuración.
+- Leer `CAPTCHA_ENABLED`.
+- Recibir el token enviado por el frontend.
+- Enviar la validación a Cloudflare Siteverify.
+- Devolver true/false según la respuesta.
+- Manejar errores sin romper el servidor.
+
+Variables sugeridas:
+
+```env
+CAPTCHA_ENABLED=true
+CAPTCHA_PROVIDER=turnstile
+TURNSTILE_SECRET_KEY=colocar_secret_key_real

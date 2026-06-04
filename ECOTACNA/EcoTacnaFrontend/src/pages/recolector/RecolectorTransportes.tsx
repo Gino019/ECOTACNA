@@ -1,0 +1,219 @@
+import { useState, useEffect } from "react";
+import { DashboardShell } from "@/components/DashboardShell";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Truck } from "lucide-react";
+import { getStoredAuth } from "@/services/authStorage";
+import { recolectorNav } from "./recolectorNav";
+import { recolectorApi } from "../../services/recolectorApi";
+import { ApiError } from "../../services/apiClient";
+
+export interface TransporteDTO {
+  id: number;
+  placa: string;
+  marca: string;
+  modelo: string;
+  capacidadLitros: number;
+  tipoUnidad: string;
+  estado: string;
+  observaciones: string;
+}
+
+// ── Colores de estado ────────────────────────────────────────────────────────
+
+const ESTADO_BADGE: Record<string, string> = {
+  ACTIVO:          "bg-emerald-100 text-emerald-800",
+  INACTIVO:        "bg-slate-100 text-slate-600",
+  EN_MANTENIMIENTO:"bg-amber-100 text-amber-800",
+  NO_DISPONIBLE:   "bg-red-100 text-red-700",
+};
+
+// ── Componente ────────────────────────────────────────────────────────────────
+
+export default function RecolectorTransportes() {
+  const auth = getStoredAuth();
+  const user = {
+    name: auth?.companyName || "Recolector",
+    sub:  auth?.email             || "No autenticado",
+  };
+
+  const [transportes, setTransportes] = useState<TransporteDTO[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    placa: "", marca: "", modelo: "", capacidadLitros: "", tipoUnidad: "Cisterna", estado: "ACTIVO", observaciones: ""
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchUnidades = () => {
+    setLoading(true);
+    recolectorApi.getUnidades()
+      .then((res) => setTransportes(res.data ?? []))
+      .catch((e: any) => setError(e instanceof ApiError ? e.message : "Error al cargar unidades de transporte"))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchUnidades();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await recolectorApi.crearUnidad({
+        placa: formData.placa,
+        tipo: formData.tipoUnidad,
+        capacidadLitros: Number(formData.capacidadLitros),
+        activo: formData.estado === "ACTIVO"
+      });
+      setShowForm(false);
+      setFormData({ placa: "", marca: "", modelo: "", capacidadLitros: "", tipoUnidad: "Cisterna", estado: "ACTIVO", observaciones: "" });
+      fetchUnidades();
+    } catch (e: any) {
+      alert(e instanceof ApiError ? e.message : "Error al crear la unidad");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <DashboardShell role="Recolector" user={user} nav={recolectorNav}>
+
+      {/* Cabecera */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <Badge className="bg-accent text-accent-foreground mb-2">Mis unidades</Badge>
+          <h1 className="font-display text-3xl font-bold">Unidades de transporte</h1>
+          <p className="text-sm text-muted-foreground">
+            Vehículos asignados a tu empresa recolectora.
+          </p>
+        </div>
+        <button 
+          onClick={() => setShowForm(!showForm)}
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium text-sm hover:bg-primary/90 transition-colors"
+        >
+          {showForm ? "Cancelar" : "+ Agregar unidad"}
+        </button>
+      </div>
+
+      {showForm && (
+        <Card className="mb-6 p-6">
+          <h2 className="text-xl font-bold mb-4">Registrar Unidad Vehicular</h2>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Placa *</label>
+              <input required value={formData.placa} onChange={e => setFormData({...formData, placa: e.target.value.toUpperCase()})} className="w-full border rounded-md p-2 uppercase" placeholder="Ej. ABC-123" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Capacidad en Litros *</label>
+              <input required type="number" min="0.1" step="0.1" value={formData.capacidadLitros} onChange={e => setFormData({...formData, capacidadLitros: e.target.value})} className="w-full border rounded-md p-2" placeholder="Ej. 5000" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Marca *</label>
+              <input required value={formData.marca} onChange={e => setFormData({...formData, marca: e.target.value})} className="w-full border rounded-md p-2" placeholder="Ej. Volvo" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Modelo *</label>
+              <input required value={formData.modelo} onChange={e => setFormData({...formData, modelo: e.target.value})} className="w-full border rounded-md p-2" placeholder="Ej. FMX" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Tipo de Unidad</label>
+              <select value={formData.tipoUnidad} onChange={e => setFormData({...formData, tipoUnidad: e.target.value})} className="w-full border rounded-md p-2 bg-background">
+                <option value="Cisterna">Cisterna</option>
+                <option value="Furgón">Furgón</option>
+                <option value="Camioneta">Camioneta</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Estado</label>
+              <select value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})} className="w-full border rounded-md p-2 bg-background">
+                <option value="ACTIVO">ACTIVO</option>
+                <option value="EN_MANTENIMIENTO">EN MANTENIMIENTO</option>
+                <option value="INACTIVO">INACTIVO</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1">Observaciones</label>
+              <textarea value={formData.observaciones} onChange={e => setFormData({...formData, observaciones: e.target.value})} className="w-full border rounded-md p-2" rows={2} placeholder="Opcional..." />
+            </div>
+            <div className="md:col-span-2 flex justify-end">
+              <button disabled={submitting} type="submit" className="bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium">
+                {submitting ? "Guardando..." : "Guardar Unidad"}
+              </button>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      {/* Contenido */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-card border border-border rounded-xl p-5 space-y-3 animate-pulse">
+              <div className="h-6 bg-muted rounded w-1/3" />
+              <div className="h-4 bg-muted rounded w-2/3" />
+              <div className="h-4 bg-muted rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <Card className="p-6 text-center">
+          <p className="text-destructive font-medium">{error}</p>
+        </Card>
+      ) : transportes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Truck className="h-16 w-16 text-muted-foreground/30 mb-4" />
+          <p className="text-lg font-medium text-muted-foreground">
+            No hay unidades registradas para tu empresa recolectora.
+          </p>
+          <p className="text-sm text-muted-foreground/70 mt-1">
+            Contacta al administrador para registrar tus vehículos.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {transportes.map((t) => (
+            <Card key={t.id} className="p-5 space-y-3 hover:shadow-md transition-shadow">
+              {/* Placa + Estado */}
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xl font-bold tracking-wider">{t.placa}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ESTADO_BADGE[t.estado] ?? "bg-muted text-muted-foreground"}`}>
+                  {t.estado.replace(/_/g, " ")}
+                </span>
+              </div>
+
+              {/* Marca / Modelo */}
+              <p className="font-medium text-sm">
+                {[t.marca, t.modelo].filter(Boolean).join(" ") || "Marca/modelo no registrado"}
+              </p>
+
+              {/* Detalles */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <div><span className="font-medium text-foreground/80">Capacidad: </span>{t.capacidadLitros?.toLocaleString("es-PE") ?? "—"} L</div>
+                <div><span className="font-medium text-foreground/80">Tipo: </span>{t.tipoUnidad ?? "—"}</div>
+              </div>
+
+              {/* Observaciones */}
+              {t.observaciones && (
+                <p className="text-xs text-muted-foreground italic border-t border-border pt-2">
+                  {t.observaciones}
+                </p>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Conteo */}
+      {!loading && !error && transportes.length > 0 && (
+        <p className="text-xs text-muted-foreground text-right mt-4">
+          {transportes.length} unidad{transportes.length !== 1 ? "es" : ""} registrada{transportes.length !== 1 ? "s" : ""}
+        </p>
+      )}
+
+    </DashboardShell>
+  );
+}

@@ -1,0 +1,1005 @@
+# PLAN_EJECUTABLE_ANTIGRAVITY_CULQI_ECOTACNA
+
+**Proyecto:** ECO_TACNA / EcoTacna
+**Objetivo:** Preparar el proyecto para integrar el flujo de suscripción mensual con Culqi, sin romper la arquitectura, reglas de programación ni alcance operativo actual.
+**Destino:** Antigravity
+**Modo de trabajo:** Ejecutar como plan secuencial, validando cada fase antes de avanzar.
+
+---
+
+## 0. Contexto obligatorio antes de tocar código
+
+Antes de modificar cualquier archivo, Antigravity debe leer y respetar estos **5 documentos principales** del proyecto:
+
+1. `tasks.md`
+2. `SSD.md`
+3. `spec.md`
+4. `architecture.md`
+5. `security.md`
+
+Estos archivos son la autoridad del proyecto. Toda implementación debe ajustarse a ellos.
+
+### Regla crítica
+
+El proyecto ya tiene reglas claras de:
+
+* Arquitectura MVC en Spring Boot.
+* Separación por capas: `controller`, `service`, `repository`, `model`, `dto`, `mapper`, `security`, `config`, `exception`, `util`, `validation`.
+* Seguridad por roles: `ROLE_ADMIN`, `ROLE_GENERADOR`, `ROLE_RECOLECTOR`.
+* Uso de JWT.
+* Uso de DTOs.
+* No exponer entidades JPA directamente.
+* Validación de operaciones sensibles en backend.
+* Auditoría básica mediante `AuditLog`.
+* Modelo de suscripción mensual para empresas generadoras y recolectoras.
+
+La integración de Culqi debe entrar como **evolución controlada del módulo de suscripción mensual**, no como un sistema paralelo ni como un reemplazo del flujo operativo de recojo.
+
+---
+
+## 1. Decisión funcional según indicación docente
+
+Según la última indicación del docente, para cerrar el flujo del sistema ya no basta con dejar la suscripción totalmente simulada. La pasarela de pago puede integrarse porque es necesaria para demostrar el flujo completo:
+
+```text
+registro -> plan -> pago/suscripción -> activación -> acceso al sistema
+```
+
+Sin embargo:
+
+* SUNAT queda simulado o pendiente para Unidad 3.
+* Google Maps queda simulado o pendiente para Unidad 3.
+* Plin queda como integración futura o no confirmada.
+* Culqi se implementa primero en modo prueba/sandbox.
+* El sistema debe seguir funcionando localmente con modo simulado si Culqi no está configurado.
+
+---
+
+## 2. Objetivo exacto de esta implementación
+
+Preparar EcoTacna para manejar suscripciones mensuales reales o simuladas con Culqi, manteniendo compatibilidad con el flujo interno.
+
+### Planes definidos
+
+| Tipo de usuario         | Rol               |           Plan | Prueba gratis | Regla de acceso                                    |
+| ----------------------- | ----------------- | -------------: | ------------: | -------------------------------------------------- |
+| Restaurante / Generador | `ROLE_GENERADOR`  |  S/ 20 mensual | 7 días gratis | Puede operar si está en `PRUEBA_ACTIVA` o `ACTIVA` |
+| Empresa recolectora     | `ROLE_RECOLECTOR` | S/ 250 mensual |            No | Puede operar solo si está `ACTIVA`                 |
+| Administrador           | `ROLE_ADMIN`      |      No aplica |     No aplica | No requiere suscripción                            |
+
+---
+
+## 3. Principio de implementación
+
+No empezar pegando Culqi directamente en el frontend.
+
+El orden correcto es:
+
+```text
+1. Backend: modelo interno de planes, suscripciones y pagos.
+2. Backend: reglas de acceso por estado de suscripción.
+3. Backend: modo simulado controlado por configuración.
+4. Frontend: pantallas visuales de planes, prueba gratis y pago.
+5. Frontend: integración visual con Culqi Checkout.
+6. Backend: integración Culqi sandbox.
+7. Backend: confirmación/webhook y actualización de estados.
+8. Pruebas y documentación.
+```
+
+La razón es que Culqi debe ser solo un proveedor externo. La lógica de negocio debe vivir en EcoTacna.
+
+---
+
+## 4. Alcance permitido
+
+### Sí implementar
+
+* Sección visual de planes en landing page.
+* Pantalla para activar prueba gratis del restaurante/generador.
+* Pantalla de pago para recolector.
+* Modelo interno de planes.
+* Modelo interno de suscripción.
+* Modelo interno de pagos.
+* Estados de suscripción.
+* Bloqueo de acceso por estado de suscripción.
+* Integración Culqi en sandbox.
+* Fallback simulado si `PAYMENTS_MODE=mock`.
+* Auditoría de cambios de suscripción y pagos.
+* Documentación `.env.example`.
+* Pruebas manuales y colección Postman si existe estructura.
+
+### No implementar ahora
+
+* SUNAT real.
+* Google Maps real.
+* Plin real si no está soportado directamente por Culqi.
+* Facturación electrónica.
+* Emisión de comprobantes SUNAT.
+* Marketplace B2B.
+* Compra/venta de lotes de aceite.
+* Liquidaciones financieras avanzadas.
+* Guardado de datos de tarjeta.
+* Captura manual insegura de CVV o número de tarjeta fuera de Culqi Checkout.
+
+---
+
+## 5. Fase 1 — Revisión de estructura real del proyecto
+
+Antigravity debe inspeccionar el proyecto adjunto antes de crear archivos.
+
+### Buscar backend
+
+Identificar:
+
+* Paquete raíz real.
+* Carpeta `controller`.
+* Carpeta `service`.
+* Carpeta `repository`.
+* Carpeta `model`.
+* Carpeta `dto`.
+* Carpeta `security`.
+* Clase principal Spring Boot.
+* Configuración de seguridad.
+* Controlador de autenticación.
+* Entidad `User`.
+* Entidad `Company`.
+* Enum `CompanyType`.
+* Enum o campo actual de suscripción.
+* Si existe `AuditLog`.
+
+### Buscar frontend
+
+Identificar:
+
+* Framework real del frontend.
+* Si usa Vite.
+* Carpeta de páginas.
+* Componente de landing page.
+* Página de registro.
+* Página de login.
+* Rutas.
+* Cliente HTTP o `authApi.ts`.
+* Estilos globales.
+* Librería de íconos.
+
+### Resultado esperado de esta fase
+
+Antigravity debe entregar un breve diagnóstico antes de modificar:
+
+```text
+Backend encontrado: sí/no
+Frontend encontrado: sí/no
+Paquete raíz backend:
+Rutas principales:
+Entidad User:
+Entidad Company:
+Campo de suscripción existente:
+Landing page:
+Login:
+Registro:
+Cliente HTTP:
+```
+
+---
+
+## 6. Fase 2 — Normalizar estados de suscripción
+
+Los documentos actuales mencionan estados:
+
+```text
+ACTIVA
+PENDIENTE
+VENCIDA
+SUSPENDIDA
+```
+
+Para soportar prueba gratis, se debe agregar:
+
+```text
+PRUEBA_ACTIVA
+PENDIENTE_PAGO
+```
+
+### Enum recomendado
+
+Crear o ajustar:
+
+```java
+public enum SubscriptionStatus {
+    PENDIENTE,
+    PENDIENTE_PAGO,
+    PRUEBA_ACTIVA,
+    ACTIVA,
+    VENCIDA,
+    SUSPENDIDA,
+    CANCELADA
+}
+```
+
+Si el proyecto ya tiene un enum similar, no crear duplicado. Adaptar el existente.
+
+### Reglas
+
+* `ROLE_GENERADOR` puede operar si:
+
+  * `PRUEBA_ACTIVA`
+  * `ACTIVA`
+
+* `ROLE_RECOLECTOR` puede operar si:
+
+  * `ACTIVA`
+
+* `ROLE_ADMIN` no requiere suscripción.
+
+---
+
+## 7. Fase 3 — Modelo de datos interno
+
+### 7.1. Crear o adaptar entidad `SubscriptionPlan`
+
+Ubicación esperada:
+
+```text
+src/main/java/.../model/SubscriptionPlan.java
+```
+
+Campos sugeridos:
+
+```java
+private Long id;
+private String code;
+private String name;
+private CompanyType companyType;
+private BigDecimal monthlyAmount;
+private String currency;
+private Integer trialDays;
+private Boolean active;
+private LocalDateTime createdAt;
+private LocalDateTime updatedAt;
+```
+
+Valores iniciales:
+
+```text
+PLAN_GENERADOR_MENSUAL
+name: Restaurante / Generador
+companyType: GENERADORA
+monthlyAmount: 20.00
+currency: PEN
+trialDays: 7
+active: true
+
+PLAN_RECOLECTOR_MENSUAL
+name: Empresa recolectora
+companyType: RECOLECTORA
+monthlyAmount: 250.00
+currency: PEN
+trialDays: 0
+active: true
+```
+
+### 7.2. Crear o adaptar entidad `Subscription`
+
+Campos sugeridos:
+
+```java
+private Long id;
+private Company company;
+private SubscriptionPlan plan;
+private SubscriptionStatus status;
+private LocalDate startDate;
+private LocalDate trialEndsAt;
+private LocalDate currentPeriodStart;
+private LocalDate currentPeriodEnd;
+private LocalDate nextBillingDate;
+private String provider;
+private String providerCustomerId;
+private String providerCardId;
+private String providerSubscriptionId;
+private LocalDateTime createdAt;
+private LocalDateTime updatedAt;
+```
+
+### 7.3. Crear entidad `Payment`
+
+Campos sugeridos:
+
+```java
+private Long id;
+private Subscription subscription;
+private Company company;
+private BigDecimal amount;
+private String currency;
+private PaymentStatus status;
+private PaymentProvider provider;
+private PaymentMode mode;
+private String providerPaymentId;
+private String providerChargeId;
+private String providerTokenId;
+private String description;
+private String rawProviderResponse;
+private LocalDateTime createdAt;
+private LocalDateTime confirmedAt;
+```
+
+### 7.4. Enums recomendados
+
+```java
+public enum PaymentStatus {
+    PENDIENTE,
+    APROBADO,
+    RECHAZADO,
+    EXPIRADO,
+    ERROR
+}
+```
+
+```java
+public enum PaymentProvider {
+    MOCK,
+    CULQI
+}
+```
+
+```java
+public enum PaymentMode {
+    MOCK,
+    SANDBOX,
+    LIVE
+}
+```
+
+---
+
+## 8. Fase 4 — Repositorios
+
+Crear si no existen:
+
+```java
+SubscriptionPlanRepository
+SubscriptionRepository
+PaymentRepository
+```
+
+Métodos mínimos:
+
+```java
+Optional<SubscriptionPlan> findByCodeAndActiveTrue(String code);
+Optional<SubscriptionPlan> findByCompanyTypeAndActiveTrue(CompanyType companyType);
+Optional<Subscription> findTopByCompanyIdOrderByCreatedAtDesc(Long companyId);
+Optional<Subscription> findByProviderSubscriptionId(String providerSubscriptionId);
+List<Payment> findByCompanyIdOrderByCreatedAtDesc(Long companyId);
+```
+
+---
+
+## 9. Fase 5 — Servicios internos
+
+### 9.1. `SubscriptionService`
+
+Responsabilidades:
+
+* Obtener plan por tipo de empresa.
+* Crear suscripción pendiente.
+* Activar prueba gratis para generador.
+* Activar suscripción tras pago aprobado.
+* Marcar como vencida o suspendida.
+* Validar si una empresa puede operar.
+* Consultar estado de suscripción del usuario autenticado.
+
+Métodos sugeridos:
+
+```java
+SubscriptionStatusResponse getMySubscriptionStatus(User user);
+SubscriptionResponse startSubscription(User user);
+SubscriptionResponse activateTrial(User user, PaymentMethodReference method);
+SubscriptionResponse activateAfterPayment(Long paymentId);
+void assertCanOperate(User user, OperationType operationType);
+boolean canOperate(User user);
+```
+
+### 9.2. `PaymentService`
+
+Responsabilidades:
+
+* Crear pago pendiente.
+* Procesar pago mock.
+* Procesar pago Culqi sandbox.
+* Registrar respuesta del proveedor.
+* Confirmar pago.
+* Rechazar pago.
+* Conectar pago aprobado con suscripción.
+
+Métodos sugeridos:
+
+```java
+PaymentInitResponse initPayment(User user, PaymentInitRequest request);
+PaymentResponse confirmMockPayment(User user, MockPaymentRequest request);
+PaymentResponse registerApprovedPayment(...);
+PaymentResponse registerRejectedPayment(...);
+```
+
+### 9.3. `CulqiPaymentService`
+
+Crear una capa específica para Culqi, separada del servicio principal de negocio.
+
+Responsabilidades:
+
+* Usar `CULQI_SECRET_KEY`.
+* Crear cliente, tarjeta, cargo o suscripción según el flujo seleccionado.
+* No exponer llaves secretas al frontend.
+* No guardar datos sensibles de tarjeta.
+* Devolver solo IDs de proveedor y estados.
+
+---
+
+## 10. Fase 6 — Configuración de pagos
+
+Agregar configuración con variables de entorno.
+
+### Backend `.env.example` o `application.properties.example`
+
+```properties
+payments.enabled=true
+payments.provider=culqi
+payments.mode=sandbox
+
+culqi.public-key=pk_test_xxxxxxxxxxxxxxxxx
+culqi.secret-key=sk_test_xxxxxxxxxxxxxxxxx
+culqi.webhook-secret=
+```
+
+Si el proyecto ya usa otro formato, adaptar respetando el estilo actual.
+
+### Frontend `.env.example`
+
+```env
+VITE_PAYMENTS_ENABLED=true
+VITE_PAYMENTS_PROVIDER=culqi
+VITE_PAYMENTS_MODE=sandbox
+VITE_CULQI_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxx
+```
+
+### Reglas de seguridad
+
+* `CULQI_SECRET_KEY` solo backend.
+* `VITE_CULQI_PUBLIC_KEY` frontend.
+* No hardcodear llaves reales.
+* No subir llaves reales al repositorio.
+* No guardar tarjeta, CVV ni fecha de vencimiento en base de datos.
+
+---
+
+## 11. Fase 7 — Endpoints backend
+
+Crear endpoints ajustados a la convención real del proyecto.
+
+### Públicos
+
+```text
+GET /api/public/plans
+```
+
+Devuelve planes activos visibles.
+
+### Autenticados
+
+```text
+GET /api/subscriptions/me
+POST /api/subscriptions/start
+POST /api/subscriptions/trial
+POST /api/payments/init
+POST /api/payments/mock/confirm
+POST /api/payments/culqi/confirm
+```
+
+### Webhook
+
+```text
+POST /api/webhooks/culqi
+```
+
+### Admin
+
+```text
+GET /api/admin/subscriptions
+GET /api/admin/subscriptions/{id}
+PUT /api/admin/subscriptions/{id}/status
+GET /api/admin/payments
+```
+
+---
+
+## 12. Fase 8 — DTOs
+
+Crear DTOs sin exponer entidades.
+
+### Request
+
+```java
+PaymentInitRequest
+CulqiPaymentConfirmRequest
+MockPaymentRequest
+SubscriptionStartRequest
+AdminSubscriptionStatusUpdateRequest
+```
+
+### Response
+
+```java
+PlanResponse
+SubscriptionResponse
+SubscriptionStatusResponse
+PaymentInitResponse
+PaymentResponse
+```
+
+### Campos mínimos para `SubscriptionStatusResponse`
+
+```java
+private String companyName;
+private CompanyType companyType;
+private SubscriptionStatus status;
+private String planName;
+private BigDecimal monthlyAmount;
+private String currency;
+private LocalDate trialEndsAt;
+private LocalDate currentPeriodEnd;
+private Boolean canOperate;
+private String message;
+```
+
+---
+
+## 13. Fase 9 — Regla de acceso por suscripción
+
+Actualizar servicios operativos existentes.
+
+### Generador
+
+Antes de crear solicitud de recojo:
+
+```text
+validar company.type == GENERADORA
+validar company.enabled/aprobada
+validar subscriptionStatus en [PRUEBA_ACTIVA, ACTIVA]
+```
+
+Si falla:
+
+```text
+403 Forbidden
+message: "Tu suscripción no permite registrar solicitudes. Activa o renueva tu plan."
+```
+
+### Recolector
+
+Antes de:
+
+* Ver recojos operativos.
+* Cambiar estado a `EN_RUTA`.
+* Confirmar recojo.
+* Registrar unidades vehiculares.
+
+Validar:
+
+```text
+company.type == RECOLECTORA
+company.enabled/aprobada
+subscriptionStatus == ACTIVA
+```
+
+Si falla:
+
+```text
+403 Forbidden
+message: "Tu acceso como recolector requiere una suscripción activa."
+```
+
+### Administrador
+
+No aplicar bloqueo por suscripción.
+
+---
+
+## 14. Fase 10 — Auditoría
+
+Registrar en `AuditLog` los eventos:
+
+```text
+SUBSCRIPTION_CREATED
+SUBSCRIPTION_TRIAL_STARTED
+SUBSCRIPTION_ACTIVATED
+SUBSCRIPTION_STATUS_CHANGED
+PAYMENT_CREATED
+PAYMENT_APPROVED
+PAYMENT_REJECTED
+PAYMENT_ERROR
+CULQI_WEBHOOK_RECEIVED
+```
+
+Si `AuditLog` no existe, no crear un sistema enorme. Crear solo lo mínimo compatible con las reglas del proyecto.
+
+---
+
+## 15. Fase 11 — Frontend visual
+
+### 15.1. Sección de planes en landing page
+
+Agregar sección:
+
+```text
+Planes y acceso a la plataforma
+```
+
+Cards:
+
+#### Restaurante / Generador
+
+```text
+S/ 20 / mes
+7 días gratis
+Hoy pagas S/ 0.00
+Luego S/ 20 al mes
+Botón: Solicitar prueba gratis
+Botón secundario: Ver métodos de pago
+```
+
+#### Empresa recolectora
+
+```text
+S/ 250 / mes
+Botón: Pagar para ingresar
+Botón secundario: Conocer el plan
+```
+
+Métodos de pago:
+
+```text
+Visa
+Mastercard
+Yape
+Plin (opcional / futura integración)
+```
+
+Nota:
+
+```text
+El flujo de pago será integrado dentro de la plataforma. SUNAT y Google Maps podrán habilitarse en fases posteriores.
+```
+
+### 15.2. Página restaurante/generador
+
+Ruta sugerida:
+
+```text
+/register/empresa
+/plans/generador/trial
+```
+
+Contenido:
+
+* Datos de empresa.
+* RUC.
+* Razón social.
+* Dirección.
+* Contacto.
+* Resumen del plan.
+* 7 días gratis.
+* Método de pago para renovación.
+* Botón: `Activar prueba gratis`.
+
+Importante:
+
+Aunque visualmente aparezca tarjeta/Yape, los datos reales deben ser gestionados por Culqi Checkout o por modo mock. No guardar tarjeta manualmente.
+
+### 15.3. Página recolector
+
+Ruta sugerida:
+
+```text
+/plans/recolector/payment
+/recolector/activate
+```
+
+Contenido:
+
+* Licencia de acceso.
+* S/ 250 / mes.
+* Estado: Pendiente de activación.
+* Beneficios.
+* Método de pago.
+* Botón: `Pagar y acceder al software`.
+
+### 15.4. Página de estado de suscripción
+
+Ruta sugerida:
+
+```text
+/subscription/status
+```
+
+Mostrar:
+
+* Plan.
+* Estado.
+* Fecha de vencimiento.
+* Próximo cobro.
+* Botón renovar si corresponde.
+* Mensaje de bloqueo si no puede operar.
+
+---
+
+## 16. Fase 12 — Culqi Checkout
+
+### Regla principal
+
+No crear inputs manuales reales para tarjeta fuera de Culqi.
+
+Usar Culqi Checkout Custom o Checkout embebido para tokenizar.
+
+### Flujo tarjeta
+
+```text
+1. Usuario presiona botón de pago.
+2. Frontend abre Culqi Checkout.
+3. Usuario ingresa tarjeta en Culqi Checkout.
+4. Culqi devuelve token.
+5. Frontend envía token al backend.
+6. Backend crea cliente/tarjeta/suscripción o cargo.
+7. Backend actualiza pago y suscripción.
+```
+
+### Flujo Yape
+
+Yape puede usarse como pago alternativo de cargo único, no como base principal de renovación automática.
+
+Implementar como:
+
+```text
+Yape = pago manual / cargo único
+Tarjeta = suscripción mensual o renovación automática
+```
+
+Si se habilita Yape:
+
+* Mostrarlo como opción secundaria.
+* No prometer renovación automática con Yape.
+* Documentar que es pago de periodo mensual manual.
+
+### Plin
+
+No implementar ahora.
+
+Mostrar solo como:
+
+```text
+Plin (futura integración)
+```
+
+---
+
+## 17. Fase 13 — Modo mock obligatorio
+
+El proyecto debe funcionar aunque no existan llaves de Culqi.
+
+Implementar modo:
+
+```properties
+payments.mode=mock
+```
+
+En modo mock:
+
+* El frontend muestra las mismas pantallas.
+* El pago se simula con botones:
+
+  * `Simular pago aprobado`
+  * `Simular pago rechazado`
+* El backend crea registros reales en `Payment` y `Subscription`.
+* No se llama a Culqi.
+
+Esto permite demo académica sin depender de Internet ni credenciales.
+
+---
+
+## 18. Fase 14 — Seguridad
+
+Actualizar `SecurityFilterChain`.
+
+### PermitAll sugerido
+
+```text
+GET /api/public/plans
+POST /api/webhooks/culqi
+```
+
+Webhook debe validarse internamente con firma/secreto si Culqi lo permite.
+
+### Auth required
+
+```text
+/api/subscriptions/**
+/api/payments/**
+```
+
+### Admin required
+
+```text
+/api/admin/subscriptions/**
+/api/admin/payments/**
+```
+
+### Importante
+
+No confiar en `companyId` enviado por frontend. Usar siempre:
+
+```text
+usuario autenticado -> company asociada
+```
+
+---
+
+## 19. Fase 15 — Actualizar documentación del proyecto
+
+Como los documentos actuales dicen que pasarelas externas están fuera del MVP, Antigravity debe proponer una actualización controlada de documentación.
+
+### Actualizar `tasks.md`
+
+Cambiar:
+
+```text
+Fase 7 Modelo de suscripción mensual: Pendiente
+```
+
+por:
+
+```text
+Fase 7 Modelo de suscripción mensual e integración Culqi sandbox: En progreso
+```
+
+Agregar checklist:
+
+```text
+- [ ] Crear planes de suscripción internos.
+- [ ] Crear entidades Subscription y Payment.
+- [ ] Implementar modo mock.
+- [ ] Implementar pantallas de planes y activación.
+- [ ] Integrar Culqi Checkout en modo sandbox.
+- [ ] Implementar webhook o confirmación de pago.
+```
+
+### Actualizar `SSD.md`
+
+Mantener la restricción de independencia operativa, pero agregar excepción:
+
+```text
+Para la fase de demostración de suscripción, se permite integrar Culqi en modo sandbox siempre que exista modo mock/local para operar sin dependencia externa.
+```
+
+### Actualizar `spec.md`
+
+Cambiar la regla de no pasarela real por:
+
+```text
+El MVP debe mantener control interno de suscripciones. La integración Culqi se incorpora como proveedor externo opcional para automatizar el cambio de estado de suscripción. El modo mock/local debe permanecer disponible para pruebas.
+```
+
+### Actualizar `architecture.md`
+
+Agregar módulo:
+
+```text
+Payment Integration Adapter
+```
+
+Pero respetando MVC:
+
+```text
+Controller -> PaymentService -> CulqiPaymentService -> Culqi API
+```
+
+### Actualizar `security.md`
+
+Agregar rutas de suscripción y pagos.
+
+---
+
+## 20. Fase 16 — Pruebas
+
+### Backend
+
+Probar:
+
+1. Crear planes iniciales.
+2. Iniciar suscripción generador.
+3. Activar prueba gratis.
+4. Bloquear solicitud si estado `PENDIENTE`, `VENCIDA` o `SUSPENDIDA`.
+5. Permitir solicitud si `PRUEBA_ACTIVA`.
+6. Permitir solicitud si `ACTIVA`.
+7. Bloquear recolector si no está `ACTIVA`.
+8. Permitir recolector si está `ACTIVA`.
+9. Registrar pago mock aprobado.
+10. Registrar pago mock rechazado.
+11. Validar que admin puede cambiar estado.
+12. Validar que usuario no pueda modificar suscripción de otra empresa.
+
+### Frontend
+
+Probar:
+
+1. Landing muestra planes.
+2. Restaurante puede ir a prueba gratis.
+3. Recolector puede ir a pagar acceso.
+4. Si usuario no tiene suscripción activa, se redirige a pago.
+5. Si usuario tiene suscripción activa, entra al panel.
+6. Botones y rutas no rompen login actual.
+
+### Culqi sandbox
+
+Probar:
+
+1. Checkout abre correctamente.
+2. Token se genera en frontend.
+3. Token llega al backend.
+4. Backend usa secret key.
+5. Pago aprobado activa suscripción.
+6. Pago rechazado no activa suscripción.
+7. Webhook registra evento si se implementa.
+
+---
+
+## 21. Fase 17 — Criterio de finalización
+
+La tarea se considera completa solo si:
+
+* El proyecto compila.
+* El login sigue funcionando.
+* Los roles siguen funcionando.
+* Admin no requiere suscripción.
+* Generador puede activar prueba gratis.
+* Generador con prueba activa puede crear solicitud.
+* Generador vencido no puede crear solicitud.
+* Recolector sin pago no puede operar.
+* Recolector pagado puede operar.
+* El modo mock funciona sin Culqi.
+* El modo Culqi sandbox queda preparado o funcional.
+* No se guardan datos sensibles de tarjeta.
+* Se actualiza documentación mínima.
+* Se listan archivos modificados y creados.
+
+---
+
+## 22. Prompt operativo final para Antigravity
+
+```text
+A partir del proyecto ECO_TACNA adjunto, implementa una preparación completa del módulo de suscripción mensual y pagos con Culqi para EcoTacna.
+
+Antes de tocar código, lee obligatoriamente estos 5 archivos: tasks.md, SSD.md, spec.md, architecture.md y security.md. Usa esos documentos como reglas de programación, arquitectura y seguridad. No improvises estructura fuera de MVC ni rompas la separación controller/service/repository/model/dto.
+
+La integración debe respetar que EcoTacna ya maneja roles ROLE_ADMIN, ROLE_GENERADOR y ROLE_RECOLECTOR, JWT, CompanyType GENERADORA/RECOLECTORA, estados operativos de recojo y modelo interno de suscripción.
+
+Implementa primero el backend interno: planes, suscripciones, pagos, estados, validación de acceso por suscripción y modo mock. Luego implementa el frontend visual: sección de planes en landing, pantalla de prueba gratis para restaurante/generador S/20 mensual con 7 días gratis, pantalla de pago para recolector S/250 mensual, y estado de suscripción. Después deja preparada o integrada la conexión con Culqi Checkout en sandbox, usando tokenización en frontend y secret key solo en backend.
+
+No integrar SUNAT real, Google Maps real ni Plin real. No guardar datos de tarjeta. No colocar llaves secretas en frontend. No hardcodear precios en múltiples lugares. Mantener modo mock/local para que el flujo funcione sin API externa.
+
+Al finalizar, entrega diagnóstico, archivos creados, archivos modificados, variables de entorno, rutas nuevas, entidades nuevas, pruebas realizadas y cómo ejecutar el flujo completo.
+```
+
+---
+
+## 23. Resumen para defensa ante el docente
+
+La implementación se plantea así:
+
+```text
+EcoTacna mantiene control interno de suscripciones para no depender de terceros en el flujo crítico. Culqi se incorpora como proveedor de pago en modo sandbox para demostrar el flujo real de activación de suscripción. En caso de no contar con credenciales o conexión externa, el modo mock permite validar exactamente el mismo flujo dentro del sistema.
+```
+
+Esto permite defender que:
+
+* El flujo funciona.
+* Hay integración realista con API externa.
+* El sistema no depende exclusivamente de Culqi.
+* SUNAT y Google Maps quedan correctamente diferidos para Unidad 3.
+* La pasarela se integra sin violar la arquitectura del proyecto.

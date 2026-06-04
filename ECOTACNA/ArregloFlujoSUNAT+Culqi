@@ -1,0 +1,274 @@
+Necesito corregir y ordenar el flujo de registro de EcoTacna antes de seguir con Culqi.
+
+Ya tenemos visualmente el flujo de Culqi/mock, pero antes de llegar a pago debe existir una primera pantalla correcta de registro basada en RUC. No integrar SUNAT real todavía. Necesito que la interfaz funcione con un endpoint mock del backend, para que luego podamos cambiar ese proveedor por SUNAT/API externa sin tocar el frontend.
+
+Antes de modificar código, revisa:
+- tasks.md
+- SSD.md
+- spec.md
+- architecture.md
+- security.md
+- walkthrough.md
+
+## Objetivo
+
+Implementar la primera fase real del flujo:
+
+Registro de empresa con búsqueda de RUC mock.
+
+El flujo completo debe quedar así:
+
+1. Registro de empresa con RUC.
+2. Autocompletado de datos principales.
+3. Completar datos auxiliares.
+4. Empresa en revisión.
+5. Aprobación manual o simulada.
+6. Plan y pago.
+7. Confirmación.
+8. Acceso al sistema.
+
+El pago debe aparecer recién después de la verificación/aprobación, nunca en la primera pantalla.
+
+## Backend requerido
+
+Crear o adaptar endpoint:
+
+GET /api/public/ruc/{ruc}
+
+Debe validar:
+- RUC obligatorio.
+- RUC de 11 dígitos.
+- Solo números.
+
+Debe responder usando un servicio interno mock.
+
+Crear o adaptar:
+- RucLookupController
+- RucLookupService
+- MockRucLookupService
+- RucLookupResponse
+
+No consultar SUNAT real todavía.
+No llamar APIs externas desde frontend.
+
+Respuesta exitosa:
+
+{
+  "success": true,
+  "message": "Datos encontrados",
+  "data": {
+    "ruc": "20605432198",
+    "razonSocial": "Pollería El Sabor Tacneño S.A.C.",
+    "nombreComercial": "El Sabor Tacneño",
+    "direccionFiscal": "Av. Bolognesi 1247",
+    "distrito": "Tacna",
+    "provincia": "Tacna",
+    "departamento": "Tacna",
+    "estadoContribuyente": "ACTIVO",
+    "condicionDomicilio": "HABIDO",
+    "fuente": "MOCK"
+  }
+}
+
+Datos mock mínimos:
+
+20605432198
+Pollería El Sabor Tacneño S.A.C.
+El Sabor Tacneño
+Av. Bolognesi 1247
+Tacna
+Tacna
+Tacna
+ACTIVO
+HABIDO
+
+20123456789
+Cevichería El Puerto S.A.C.
+Cevichería El Puerto
+Av. San Martín 850
+Tacna
+Tacna
+Tacna
+ACTIVO
+HABIDO
+
+20543210987
+Recolectora Verde Tacna S.R.L.
+Recolectora Verde Tacna
+Av. Industrial 220
+Coronel Gregorio Albarracín Lanchipa
+Tacna
+Tacna
+ACTIVO
+HABIDO
+
+## Frontend requerido
+
+Recrear la primera pantalla de registro siguiendo el mockup visual aprobado.
+
+No exportar HTML/CSS suelto.
+Implementar como React/TSX respetando la estructura actual del proyecto.
+
+Componentes sugeridos:
+- RegisterCompanyPage
+- RegistrationStepper
+- RucSearchPanel
+- AutocompletedCompanyData
+- AuxiliaryCompanyDataForm
+
+La pantalla debe mostrar:
+
+Header:
+- Logo EcoTacna
+- Volver al inicio
+
+Badge:
+Registro y suscripción
+
+Título:
+Registra tu empresa
+
+Subtítulo:
+Ingresa tu RUC para autocompletar los datos principales de tu empresa y luego completa la información auxiliar.
+
+Stepper:
+1. Registro de empresa
+2. Verificación
+3. Plan y pago
+4. Confirmación
+5. Acceso al sistema
+
+Bloque principal:
+- Número de RUC
+- Botón “Buscar datos”
+
+Al presionar “Buscar datos”:
+- llamar al backend GET /api/public/ruc/{ruc}
+- mostrar loading
+- si encuentra datos, autocompletar la sección “Datos de la empresa”
+- si falla, mostrar mensaje controlado
+
+Sección autocompletada:
+- Razón social
+- Nombre comercial
+- Dirección fiscal
+- Distrito
+- Provincia
+- Departamento
+- Estado del contribuyente
+- Condición de domicilio
+
+Cada campo autocompletado debe mostrar badge verde:
+Autocompletado
+
+Mensaje informativo:
+“La validación automática con SUNAT se integrará en una etapa posterior; por ahora se muestra el comportamiento esperado del autocompletado.”
+
+Sección auxiliar:
+- Tipo de empresa: Restaurante / Generador o Empresa recolectora
+- Correo electrónico
+- Teléfono
+- Persona de contacto
+- Cargo opcional
+- Referencia opcional
+
+Botones:
+- Guardar borrador
+- Siguiente
+
+## Restricciones visuales
+
+En esta primera pantalla NO mostrar:
+- Precio S/20.
+- Precio S/250.
+- Plan.
+- Culqi.
+- Yape.
+- Tarjeta.
+- Prueba gratis.
+- Panel lateral de resumen.
+- Pago.
+- Botón pagar.
+- Botón solicitar prueba gratis.
+
+Solo registro.
+
+## Al presionar Siguiente
+
+Validar:
+- RUC válido.
+- Datos principales cargados.
+- Tipo de empresa seleccionado.
+- Correo obligatorio.
+- Teléfono obligatorio.
+- Persona de contacto obligatoria.
+
+Luego guardar/preparar el registro y pasar a la pantalla:
+
+“Tu empresa está en revisión”
+
+La pantalla de revisión debe mostrar los datos enviados.
+
+## Modo desarrollo para probar Culqi
+
+Como necesitamos probar Culqi/mock sin esperar una aprobación real, agregar solo en modo mock/desarrollo un botón:
+
+“Simular aprobación administrativa”
+
+Este botón debe:
+- cambiar la empresa a APROBADA o estado equivalente
+- permitir avanzar al paso “Plan y pago”
+
+En producción no debe aparecer.
+
+## Flujo posterior
+
+Si la empresa es Restaurante / Generador:
+- después de aprobación, mostrar plan S/20 mensual
+- 7 días gratis
+- activar prueba gratis
+- método de pago para renovación
+
+Si la empresa es Recolectora:
+- después de aprobación, mostrar plan S/250 mensual
+- pago obligatorio
+- activar acceso después de pago mock/sandbox
+
+## Limpieza
+
+Eliminar del paso 1 cualquier componente viejo:
+- registro diferido
+- plan selection
+- payment card
+- resumen lateral
+- botones antiguos de login demo
+
+No dejar imports sin uso.
+No dejar rutas antiguas huérfanas.
+No duplicar componentes si ya existen.
+
+## Pruebas
+
+1. Abrir landing.
+2. Clic en Registrar empresa.
+3. Confirmar que aparece la pantalla de RUC.
+4. Ingresar RUC 20605432198.
+5. Clic en Buscar datos.
+6. Confirmar autocompletado.
+7. Completar datos auxiliares.
+8. Clic en Siguiente.
+9. Confirmar pantalla “Tu empresa está en revisión”.
+10. Simular aprobación en modo mock.
+11. Confirmar avance a plan y pago.
+12. Confirmar que Culqi/mock aparece recién en plan y pago.
+13. Confirmar que login sigue funcionando.
+14. Confirmar que no hay errores en consola.
+15. Ejecutar build del frontend.
+
+Entregar:
+- Archivos modificados.
+- Endpoint creado.
+- Componentes creados/reutilizados.
+- RUC mock disponibles.
+- Rutas actualizadas.
+- Resultado de build.

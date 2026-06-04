@@ -1,0 +1,242 @@
+La pantalla de registro empresarial debe quedar definitivamente reemplazada por la nueva pantalla visual de selección de suscripción. No quiero que quede la pantalla antigua de “Registro de Cuentas Diferido” ni archivos/componentes residuales o basura innecesaria en el frontend.
+
+Antes de modificar, revisa:
+- tasks.md
+- SSD.md
+- spec.md
+- architecture.md
+- security.md
+- walkthrough.md
+
+## Objetivo
+
+Eliminar completamente del frontend la pantalla antigua de registro diferido y dejar fija la nueva experiencia visual de registro/suscripción:
+
+- Restaurante / Generador: S/ 20 mensual + 7 días gratis.
+- Empresa recolectora: S/ 250 mensual.
+- Acceso conectado al flujo mock de suscripción/pago.
+- Diseño consistente con EcoTacna.
+
+## Pantalla que debe desaparecer
+
+Buscar y eliminar toda referencia visual, lógica o de texto a:
+
+- “Registro de Cuentas Diferido”
+- “El registro público de nuevas empresas está actualmente diferido”
+- “Ir al Login (Usar cuenta demo)”
+- “Para esta versión académica...”
+- cualquier card antigua de registro diferido
+
+La ruta de registro ya no debe mostrar esa pantalla bajo ningún caso.
+
+## Nueva pantalla fija
+
+La ruta actual de registro empresarial debe mostrar una pantalla centrada, limpia y definitiva con:
+
+### Encabezado
+
+Badge:
+Registro y suscripción
+
+Título:
+Elige cómo ingresar a EcoTacna
+
+Subtítulo:
+Selecciona el tipo de cuenta para activar tu acceso a la plataforma.
+
+Mantener:
+- Logo EcoTacna.
+- Enlace “Volver al inicio”.
+- Fondo claro verdoso.
+- Diseño limpio.
+
+## Tarjeta 1: Restaurante / Generador
+
+Título:
+Restaurante / Generador
+
+Precio:
+S/ 20 / mes
+
+Badge:
+7 días gratis
+
+Descripción:
+Para restaurantes, pollerías y negocios que generan aceite usado y desean solicitar recojos trazables.
+
+Beneficios:
+- Solicitudes de recojo
+- Trazabilidad QR
+- Certificados ambientales
+- Historial y estado de pagos
+
+Resumen:
+Hoy pagas: S/ 0.00
+Luego: S/ 20 al mes
+
+Botón principal:
+Solicitar prueba gratis
+
+Acción:
+Debe navegar al flujo de activación de prueba gratis del generador.
+
+Si ya existe ruta, conectarla.
+Si existe componente ya creado, reutilizarlo.
+No crear duplicados innecesarios.
+
+## Tarjeta 2: Empresa recolectora
+
+Título:
+Empresa recolectora
+
+Precio:
+S/ 250 / mes
+
+Descripción:
+Para empresas recolectoras autorizadas que atenderán recojos y operarán desde el panel del sistema.
+
+Beneficios:
+- Panel operativo
+- Gestión de recojos
+- Rutas y cobertura
+- Liquidaciones y reportes
+- Control de suscripción
+
+Resumen:
+Pago inicial: S/ 250.00
+Renovación: mensual
+
+Botón principal:
+Pagar para ingresar
+
+Acción:
+Debe navegar al flujo de pago o activación de acceso del recolector.
+
+Si ya existe ruta, conectarla.
+Si existe componente ya creado, reutilizarlo.
+No crear duplicados innecesarios.
+
+## Métodos de pago
+
+Debajo de las tarjetas mostrar una franja discreta:
+
+Métodos de pago disponibles:
+- Tarjeta
+- Yape
+- Culqi Mock
+- Culqi Sandbox preparado
+- Plin: futura integración
+
+No presentar Plin como activo.
+
+## Limpieza obligatoria del frontend
+
+Después de reemplazar la pantalla, hacer limpieza real.
+
+Buscar archivos/componentes relacionados con el registro diferido antiguo:
+
+Posibles nombres:
+- Register.tsx
+- RegisterPage.tsx
+- RegistroEmpresa.tsx
+- RegisterCompany.tsx
+- DeferredRegister.tsx
+- RegistroDiferido.tsx
+- DemoRegister.tsx
+- components relacionados al registro diferido
+
+Eliminar o refactorizar lo que ya no se usa.
+
+## Regla de limpieza
+
+No dejar:
+
+- componentes muertos
+- imports sin uso
+- rutas huérfanas
+- textos antiguos
+- botones antiguos
+- comentarios obsoletos
+- archivos duplicados de pantallas de registro
+- variables no usadas
+- CSS o clases destinadas solo a la pantalla antigua
+
+Si un archivo ya no se usa, eliminarlo.
+Si un componente puede reutilizarse, renombrarlo y dejarlo limpio.
+Si una ruta apunta a una pantalla antigua, actualizarla.
+
+## Revisión de rutas
+
+Revisar:
+- App.tsx
+- router.tsx
+- routes.tsx
+- main.tsx
+- archivos de navegación
+- botones del landing
+- botón “Registrar empresa”
+- enlaces del footer relacionados con registro
+
+La ruta de “Registrar empresa” debe llevar a esta nueva pantalla de selección de suscripción.
+
+El botón de restaurante debe llevar a prueba gratis.
+El botón de recolector debe llevar a pago/activación de recolector.
+
+## Backend y reglas
+
+No tocar backend salvo que sea estrictamente necesario para conectar rutas ya existentes.
+
+Mantener:
+- Admin no requiere suscripción.
+- Generador opera con PRUEBA_ACTIVA o ACTIVA.
+- Recolector opera solo con ACTIVA.
+- Validación real en backend.
+- Modo mock como flujo disponible.
+- Culqi sandbox preparado pero no obligatorio.
+
+## Validación visual
+
+La nueva pantalla debe quedar acorde al estilo actual:
+
+- Cards blancas.
+- Bordes redondeados.
+- Sombra ligera.
+- Verde institucional.
+- Badges pequeños.
+- Botones verdes.
+- Layout centrado.
+- Responsive básico.
+- Nada de textos antiguos.
+
+## Pruebas obligatorias
+
+1. Ejecutar frontend.
+2. Entrar a la ruta de registro.
+3. Confirmar que ya no aparece “Registro de Cuentas Diferido”.
+4. Confirmar que no aparece “Ir al Login (Usar cuenta demo)”.
+5. Confirmar que aparecen las dos tarjetas:
+   - Restaurante / Generador S/ 20 / mes + 7 días gratis.
+   - Empresa recolectora S/ 250 / mes.
+6. Click en “Solicitar prueba gratis”.
+7. Confirmar navegación a activación de prueba gratis.
+8. Click en “Pagar para ingresar”.
+9. Confirmar navegación a activación/pago recolector.
+10. Revisar consola del navegador: sin errores.
+11. Revisar terminal de frontend: sin warnings graves de imports no usados.
+12. Ejecutar build del frontend si aplica:
+    npm run build
+13. Confirmar que el login sigue funcionando.
+14. Confirmar que “Volver al inicio” funciona.
+15. Confirmar que no existen rutas antiguas apuntando a registro diferido.
+
+## Entregable
+
+Al finalizar, reporta:
+
+- Archivo exacto donde estaba la pantalla antigua.
+- Archivos eliminados.
+- Archivos modificados.
+- Componentes creados o reutilizados.
+- Rutas actualizadas.
+- Resultado de npm run build.
+- Confirmación de que ya no queda texto ni componente de “Registro de Cuentas Diferido”.
