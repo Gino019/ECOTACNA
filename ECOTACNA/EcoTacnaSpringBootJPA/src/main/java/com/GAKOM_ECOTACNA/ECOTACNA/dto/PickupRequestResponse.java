@@ -20,15 +20,13 @@ public class PickupRequestResponse {
     private String recolectorAsignado;
     private String direccion;
     private String observaciones;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
-    // Pago operativo (Etapa 2)
     private BigDecimal litrosConfirmados;
     private BigDecimal precioPorLitro;
     private BigDecimal montoTotal;
     private String estadoPago;
     private LocalDateTime fechaConfirmacionPago;
     private String observacionPago;
-
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 }

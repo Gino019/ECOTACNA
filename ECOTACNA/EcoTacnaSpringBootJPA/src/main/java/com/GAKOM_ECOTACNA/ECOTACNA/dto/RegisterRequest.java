@@ -21,8 +21,12 @@ public class RegisterRequest {
     private String email;
 
     @NotNull(message = "La contraseña es obligatoria")
-    @Size(min = 6, max = 50, message = "La contraseña debe tener entre 6 y 50 caracteres")
+    @Size(min = 8, max = 50, message = "La contraseña debe tener entre 8 y 50 caracteres")
+    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).+$", message = "La contraseña debe contener al menos una letra y un número")
     private String password;
+
+    @NotNull(message = "La confirmación de contraseña es obligatoria")
+    private String confirmPassword;
 
     @NotNull(message = "El nombre es obligatorio")
     @Size(max = 100)
@@ -31,6 +35,9 @@ public class RegisterRequest {
     @NotNull(message = "El apellido es obligatorio")
     @Size(max = 100)
     private String lastName;
+
+    @Size(max = 50)
+    private String phone;
 
     @NotNull(message = "El rol de la empresa es obligatorio")
     private Role role;

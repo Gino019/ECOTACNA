@@ -43,6 +43,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Captura intentos de registro con RUC duplicado.
+     * Retorna un HTTP 409 Conflict con detalles estructurados.
+     */
+    @ExceptionHandler(DuplicateRegistrationException.class)
+    public ResponseEntity<com.GAKOM_ECOTACNA.ECOTACNA.dto.RegistrationStatusResponse> handleDuplicateRegistrationException(
+            DuplicateRegistrationException ex, HttpServletRequest request) {
+        return new ResponseEntity<>(ex.getStatusResponse(), HttpStatus.CONFLICT);
+    }
+
+    /**
      * Captura excepciones de recursos no encontrados (ej. lote o pedido inexistente).
      */
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -81,6 +91,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
+        ex.printStackTrace();
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),

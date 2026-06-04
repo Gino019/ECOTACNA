@@ -37,7 +37,17 @@ public class Company {
     @Column(nullable = false, length = 500)
     private String address;
 
+    @Size(max = 100)
+    @Column(length = 100)
+    private String district;
 
+    @Size(max = 100)
+    @Column(length = 100)
+    private String province;
+
+    @Size(max = 100)
+    @Column(length = 100)
+    private String department;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "company_type", nullable = false, length = 30)

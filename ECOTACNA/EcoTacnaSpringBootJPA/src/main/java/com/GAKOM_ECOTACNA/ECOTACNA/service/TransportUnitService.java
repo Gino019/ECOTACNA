@@ -109,11 +109,7 @@ public class TransportUnitService {
 
     @Transactional
     public TransportUnit createForCollector(Company company, User user, TransportUnitRequest request, String ipAddress) {
-        subscriptionValidator.validateActiveSubscription(company);
-        
-        if (company.getCompanyType() != CompanyType.RECOLECTORA) {
-            throw new BusinessException("La empresa debe ser de tipo RECOLECTORA.");
-        }
+        subscriptionValidator.ensureCollectorCanManageTransportUnits(company);
 
         String plate = request.getPlaca().trim().toUpperCase();
         if (transportUnitRepository.existsByPlateExcludingId(plate, null)) {
@@ -143,7 +139,7 @@ public class TransportUnitService {
 
     @Transactional
     public TransportUnit updateForCollector(Long id, Company company, User user, TransportUnitRequest request, String ipAddress) {
-        subscriptionValidator.validateActiveSubscription(company);
+        subscriptionValidator.ensureCollectorCanManageTransportUnits(company);
         
         TransportUnit unit = getById(id);
         

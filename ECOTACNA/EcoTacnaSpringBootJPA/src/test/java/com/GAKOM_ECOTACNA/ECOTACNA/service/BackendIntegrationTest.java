@@ -31,6 +31,9 @@ public class BackendIntegrationTest {
     private TransportUnitService transportUnitService;
 
     @Autowired
+    private AuthService authService;
+
+    @Autowired
     private PickupRequestService pickupRequestService;
 
     @Autowired
@@ -173,7 +176,7 @@ public class BackendIntegrationTest {
 
         // 4. Confirmar
         request = pickupRequestService.confirmPickup(request.getId(), recolectora, recolectorUser, new BigDecimal("490"), "127.0.0.1");
-        assertEquals(PickupRequestStatus.COMPLETADO, request.getStatus());
+        assertEquals(PickupRequestStatus.RECOGIDO, request.getStatus());
         assertEquals(new BigDecimal("490"), request.getActualVolumeLiters());
     }
 
@@ -218,5 +221,135 @@ public class BackendIntegrationTest {
             pickupRequestService.create(recolectora, new BigDecimal("100"), LocalDateTime.now().plusDays(1), "dir", "obs", recolectorUser, "127.0.0.1")
         );
         assertTrue(ex.getMessage().contains("Solo empresas GENERADORAS pueden crear solicitudes de recojo"));
+    }
+
+    @Test
+    public void testRegisterRequestPasswordValidation() {
+        com.GAKOM_ECOTACNA.ECOTACNA.dto.RegisterRequest req = new com.GAKOM_ECOTACNA.ECOTACNA.dto.RegisterRequest();
+        req.setRuc("10203040506");
+        req.setEmail("test@company.com");
+        req.setFirstName("First");
+        req.setLastName("Last");
+        req.setRole(Role.GENERADOR);
+
+        // 1. Password too short (less than 8 characters)
+        req.setPassword("Short1");
+        req.setConfirmPassword("Short1");
+        Set<ConstraintViolation<com.GAKOM_ECOTACNA.ECOTACNA.dto.RegisterRequest>> violations = validator.validate(req);
+        assertFalse(violations.isEmpty());
+        assertTrue(violations.stream().anyMatch(v -> v.getMessage().contains("La contraseña debe tener entre 8 y 50 caracteres")));
+
+        // 2. Password lacks letters
+        req.setPassword("12345678");
+        req.setConfirmPassword("12345678");
+        violations = validator.validate(req);
+        assertFalse(violations.isEmpty());
+        assertTrue(violations.stream().anyMatch(v -> v.getMessage().contains("La contraseña debe contener al menos una letra y un número")));
+
+        // 3. Password lacks numbers
+        req.setPassword("abcdefgh");
+        req.setConfirmPassword("abcdefgh");
+        violations = validator.validate(req);
+        assertFalse(violations.isEmpty());
+        assertTrue(violations.stream().anyMatch(v -> v.getMessage().contains("La contraseña debe contener al menos una letra y un número")));
+
+        // 4. Password valid
+        req.setPassword("Ecotacna2026");
+        req.setConfirmPassword("Ecotacna2026");
+        violations = validator.validate(req);
+        assertTrue(violations.isEmpty());
+    }
+
+    @Test
+    public void testAuthServicePasswordMismatch() {
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+            authService.registerCompany(
+                "12345678901",
+                "mismatch@test.com",
+                "Ecotacna2026",
+                "DifferentPassword1",
+                "Admin",
+                "Existente",
+                "999888777",
+                Role.GENERADOR,
+                CompanyType.GENERADORA,
+                "127.0.0.1"
+            )
+        );
+        assertTrue(ex.getMessage().contains("Las contraseñas no coinciden"));
+    }
+
+    @Test
+    public void testGeneradorRegistrationAndBcryptLogin() {
+        // Register Generador
+        User registeredUser = authService.registerCompany(
+            "20601234567",
+            "restaurante@generador.com",
+            "EcoTacna123",
+            "EcoTacna123",
+            "Admin Generador",
+            "Restaurante",
+            "999888777",
+            Role.GENERADOR,
+            CompanyType.GENERADORA,
+            "127.0.0.1"
+        );
+
+        assertNotNull(registeredUser);
+        assertNotNull(registeredUser.getCompany());
+        assertEquals(CompanyType.GENERADORA, registeredUser.getCompany().getCompanyType());
+        assertEquals(Role.GENERADOR, registeredUser.getRole());
+        
+        // Confirm users.password is BCrypt and not plain text
+        String passwordHash = registeredUser.getPassword();
+        assertTrue(passwordHash.startsWith("$2a$") || passwordHash.startsWith("$2y$") || passwordHash.startsWith("$2b$"),
+            "La contraseña debe estar hasheada con BCrypt");
+
+        // Authenticate with correct credentials
+        User authenticated = authService.authenticate("restaurante@generador.com", "EcoTacna123");
+        assertNotNull(authenticated);
+        assertEquals(registeredUser.getId(), authenticated.getId());
+
+        // Authenticate with incorrect credentials should fail
+        assertThrows(BusinessException.class, () ->
+            authService.authenticate("restaurante@generador.com", "WrongPassword")
+        );
+    }
+
+    @Test
+    public void testRecolectorRegistrationAndBcryptLogin() {
+        // Register Recolector
+        User registeredUser = authService.registerCompany(
+            "20607654321",
+            "transporte@recolector.com",
+            "EcoTacna123",
+            "EcoTacna123",
+            "Admin Recolector",
+            "Transporte",
+            "999888777",
+            Role.RECOLECTOR,
+            CompanyType.RECOLECTORA,
+            "127.0.0.1"
+        );
+
+        assertNotNull(registeredUser);
+        assertNotNull(registeredUser.getCompany());
+        assertEquals(CompanyType.RECOLECTORA, registeredUser.getCompany().getCompanyType());
+        assertEquals(Role.RECOLECTOR, registeredUser.getRole());
+
+        // Confirm users.password is BCrypt and not plain text
+        String passwordHash = registeredUser.getPassword();
+        assertTrue(passwordHash.startsWith("$2a$") || passwordHash.startsWith("$2y$") || passwordHash.startsWith("$2b$"),
+            "La contraseña debe estar hasheada con BCrypt");
+
+        // Authenticate with correct credentials
+        User authenticated = authService.authenticate("transporte@recolector.com", "EcoTacna123");
+        assertNotNull(authenticated);
+        assertEquals(registeredUser.getId(), authenticated.getId());
+
+        // Authenticate with incorrect credentials should fail
+        assertThrows(BusinessException.class, () ->
+            authService.authenticate("transporte@recolector.com", "WrongPassword")
+        );
     }
 }

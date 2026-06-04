@@ -44,6 +44,10 @@ public class User {
     @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
+    @Size(max = 50)
+    @Column(length = 50)
+    private String phone;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

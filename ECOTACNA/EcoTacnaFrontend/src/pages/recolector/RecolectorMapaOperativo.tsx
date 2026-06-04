@@ -2,22 +2,31 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { MapMock } from "@/components/MapMock";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MapPinned } from "lucide-react";
+import { MapPinned, User, Phone, Navigation, Clock, Droplet, CheckCircle } from "lucide-react";
 import { recolectorNav } from "./recolectorNav";
 import { getStoredAuth } from "@/services/authStorage";
 import { useState, useEffect } from "react";
-import { empresaApi } from "@/services/empresaApi";
+import { recolectorApi } from "@/services/recolectorApi";
+import type { PickupRequest } from "@/types";
 
 export default function RecolectorMapaOperativo() {
   const auth = getStoredAuth();
   const [user, setUser] = useState({ name: auth?.companyName || "Recolector", sub: auth?.email || "No autenticado" });
+  const [activeRequest, setActiveRequest] = useState<PickupRequest | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    empresaApi.getPerfil().then((res) => {
+    recolectorApi.getPerfil().then((res) => {
       if (res.success && res.data) {
         setUser({ name: res.data.razonSocial, sub: res.data.correo || `RUC ${res.data.ruc}` });
       }
     }).catch(() => {});
+
+    recolectorApi.getRecojoActivo().then((res) => {
+      if (res.success && res.data) {
+        setActiveRequest(res.data);
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const pins = [
@@ -34,13 +43,16 @@ export default function RecolectorMapaOperativo() {
           <Badge variant="outline" className="border-info text-info"><MapPinned className="h-3 w-3 mr-1"/> En vivo</Badge>
         </div>
         <h1 className="font-display text-3xl font-bold">Mapa Operativo</h1>
-        <p className="text-sm text-muted-foreground">Monitoreo y geolocalización de los puntos de recolección asignados.</p>
+        <p className="text-sm text-muted-foreground">Integración futura con Google Maps.</p>
       </div>
 
-      <Card className="p-5">
-        <div className="mb-4">
-          <h3 className="font-display font-bold">Ruta aproximada</h3>
-          <p className="text-xs text-muted-foreground">El mapa muestra los puntos de recolección planificados para el día de hoy.</p>
+      <Card className="p-5 mb-6 opacity-70">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="font-display font-bold">Mapa Operativo (Simulación)</h3>
+            <p className="text-xs text-muted-foreground">La geolocalización real se integrará en fases posteriores.</p>
+          </div>
+          <Badge variant="secondary">Próximamente</Badge>
         </div>
         
         <MapMock 
@@ -48,9 +60,83 @@ export default function RecolectorMapaOperativo() {
           showRoute={true}
           showLegend={true}
           title="Ruta de Recolección"
-          height="h-[450px]"
+          height="h-[300px]"
         />
       </Card>
+
+      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+        <Navigation className="h-5 w-5 text-primary" /> Recojo en curso
+      </h2>
+
+      {loading ? (
+        <Card className="p-8 animate-pulse bg-muted/50 h-40" />
+      ) : activeRequest ? (
+        <Card className="overflow-hidden border-primary/20 shadow-md">
+          <div className="bg-primary/5 p-4 border-b border-border flex justify-between items-center">
+            <div>
+              <h3 className="font-bold text-lg text-primary">{activeRequest.empresaRazonSocial || "Restaurante"}</h3>
+            </div>
+            <Badge className="bg-primary hover:bg-primary">
+              {activeRequest.estado?.replace("_", " ") || "ACTIVO"}
+            </Badge>
+          </div>
+          
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Dirección de Recojo</p>
+                <div className="flex items-start gap-2">
+                  <MapPinned className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <p className="font-medium">{activeRequest.direccion || "No especificada"}</p>
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contacto</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <p className="text-sm">Datos de la empresa (ver RUC para contacto)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 md:border-l md:border-border md:pl-6">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Detalles Operativos</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <Droplet className="h-4 w-4 text-blue-500 shrink-0" />
+                  <p className="text-sm font-medium">{activeRequest.volumenAproximado?.toLocaleString('es-PE')} L <span className="text-muted-foreground font-normal">estimados</span></p>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <p className="text-sm">Creada: {activeRequest.fechaSolicitud ? new Date(activeRequest.fechaSolicitud).toLocaleDateString('es-PE', { hour: '2-digit', minute: '2-digit'}) : "Sin fecha"}</p>
+                </div>
+                {activeRequest.transportePlaca && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <p className="text-sm">Unidad: <span className="font-mono bg-muted px-1 py-0.5 rounded text-xs">{activeRequest.transportePlaca}</span></p>
+                  </div>
+                )}
+              </div>
+              
+              {activeRequest.observaciones && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Observaciones</p>
+                  <p className="text-sm italic text-muted-foreground bg-muted/30 p-2 rounded border border-border/50">"{activeRequest.observaciones}"</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card className="p-8 flex flex-col items-center justify-center text-center border-dashed">
+          <CheckCircle className="h-10 w-10 text-emerald-500/50 mb-3" />
+          <p className="text-lg font-medium text-foreground">No tienes recojos en curso actualmente.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Ve a "Recojos del día" para aceptar nuevas solicitudes.
+          </p>
+        </Card>
+      )}
     </DashboardShell>
   );
 }

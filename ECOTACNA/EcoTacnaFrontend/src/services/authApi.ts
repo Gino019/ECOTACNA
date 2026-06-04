@@ -8,7 +8,7 @@ export interface AuthData {
   companyId:          number | null;
   companyName:        string | null;
   companyType:        "GENERADORA" | "RECOLECTORA" | null;
-  subscriptionStatus: "ACTIVA" | "PENDIENTE" | "VENCIDA" | "SUSPENDIDA" | null;
+  subscriptionStatus: "PENDIENTE" | "PENDIENTE_PAGO" | "ACTIVA" | "PRUEBA_ACTIVA" | "VENCIDA" | "SUSPENDIDA" | "CANCELADA" | null;
 }
 
 export const authApi = {
@@ -19,7 +19,7 @@ export const authApi = {
     });
   },
 
-  register: async (body: any) => {
+  register: async (body: Record<string, unknown>) => {
     return apiClient("/auth/register", {
       method: "POST",
       body: JSON.stringify(body),
@@ -29,5 +29,11 @@ export const authApi = {
   logout: async () => {
     // Elimina el token localmente, no requiere backend
     return Promise.resolve();
+  },
+
+  checkRegistrationStatus: async (ruc: string) => {
+    return apiClient<import("@/types").RegistrationStatusData>(`/auth/registration-status/${ruc}`, {
+      method: "GET",
+    });
   },
 };

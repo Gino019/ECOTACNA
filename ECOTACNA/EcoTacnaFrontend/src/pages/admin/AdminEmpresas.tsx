@@ -23,8 +23,10 @@ export default function AdminEmpresas() {
   const navigate = useNavigate();
   const [data, setData]       = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true);
     adminApi.getEmpresas()
       .then(res => {
         if (Array.isArray(res.data) && res.data.length > 0) setData(res.data);
@@ -35,7 +37,38 @@ export default function AdminEmpresas() {
         else { setData([]); toast.error("Error al cargar empresas registradas"); }
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
   }, [navigate]);
+
+  const handleApprove = async (id: number) => {
+    setActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      await adminApi.approveCompany(id);
+      toast.success("Empresa aprobada correctamente");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Error al aprobar la empresa");
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    if (!confirm("¿Está seguro de rechazar esta empresa?")) return;
+    setActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      await adminApi.rejectCompany(id);
+      toast.success("Empresa rechazada correctamente");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Error al rechazar la empresa");
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
 
   const pendientes = data.filter((e: any) => !e.verificada || e.estado?.toString().toUpperCase() === "PENDIENTE");
   const activas    = data.filter((e: any) => e.verificada || ["ACTIVA", "ACTIVO", "REGISTRADA", "REGISTRADO"].includes(e.estado?.toString().toUpperCase()));
@@ -81,8 +114,8 @@ export default function AdminEmpresas() {
                 <TableRow>
                   <TableHead className="min-w-[180px]">Empresa / Razón social</TableHead>
                   <TableHead className="min-w-[110px]">RUC</TableHead>
-                  <TableHead className="min-w-[100px]">Distrito</TableHead>
-                  <TableHead className="min-w-[130px]">Responsable</TableHead>
+                  <TableHead className="min-w-[100px]">Correo de contacto</TableHead>
+                  <TableHead className="min-w-[130px]">Número de contacto</TableHead>
                   <TableHead className="text-right min-w-[80px]">Litros</TableHead>
                   <TableHead className="min-w-[100px]">Estado</TableHead>
                   <TableHead></TableHead>
@@ -97,13 +130,19 @@ export default function AdminEmpresas() {
                       <TableRow key={e.id}>
                         <TableCell className="max-w-[200px]">
                           {/* Truncado con title para ver nombre completo en hover */}
-                          <div className="font-semibold text-sm truncate" title={e.nombre}>{e.nombre}</div>
-                          {e.tipo && <div className="text-xs text-muted-foreground truncate">{e.tipo}</div>}
+                          <div className="font-semibold text-sm truncate" title={e.razonSocial}>{e.razonSocial || "Información no disponible"}</div>
+                          {e.tipoEmpresa && <div className="text-xs text-muted-foreground truncate">{e.tipoEmpresa}</div>}
                         </TableCell>
                         <TableCell className="font-mono text-xs whitespace-nowrap">{e.ruc}</TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">{e.distrito}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{e.responsable}</TableCell>
-                        <TableCell className="text-right font-mono text-sm whitespace-nowrap">{Number(e.litros ?? 0).toLocaleString()} L</TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {e.correoContacto ? (
+                            <a href={`mailto:${e.correoContacto}`} className="text-eco hover:underline">{e.correoContacto}</a>
+                          ) : (
+                            "Información no disponible"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{e.numeroContacto || "Información no disponible"}</TableCell>
+                        <TableCell className="text-right font-mono text-sm whitespace-nowrap">{Number(e.totalLiters ?? 0).toLocaleString()} L</TableCell>
                         <TableCell>
                           <Badge className="bg-muted text-muted-foreground">
                             {e.estado || "—"}
@@ -133,11 +172,30 @@ export default function AdminEmpresas() {
                 ? <div className="text-sm text-muted-foreground text-center py-6">Sin empresas pendientes</div>
                 : pendientes.map((e: any) => (
                   <div key={e.id} className="p-3 rounded-xl bg-muted/40 border border-border">
-                    <div className="font-semibold text-sm truncate" title={e.razon}>{e.razon}</div>
-                    <div className="text-xs text-muted-foreground mb-3">RUC {e.ruc} · {e.distrito}</div>
+                    <div className="font-semibold text-sm truncate" title={e.razonSocial}>{e.razonSocial || "Información no disponible"}</div>
+                    <div className="text-xs text-muted-foreground mb-3">
+                      RUC {e.ruc} · {e.tipoEmpresa || "Generadora"}
+                      <br/>
+                      {e.correoContacto ? <a href={`mailto:${e.correoContacto}`} className="text-eco hover:underline">{e.correoContacto}</a> : "Información no disponible"} · {e.numeroContacto || "Información no disponible"}
+                    </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1" disabled title="Aprobación diferida"><X className="h-3.5 w-3.5 mr-1"/> Rechazar</Button>
-                      <Button size="sm" className="flex-1 bg-success text-success-foreground opacity-50 cursor-not-allowed" disabled title="Aprobación diferida"><Check className="h-3.5 w-3.5 mr-1"/> Aprobar</Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1" 
+                        disabled={actionLoading[e.id]}
+                        onClick={() => handleReject(e.id)}
+                      >
+                        <X className="h-3.5 w-3.5 mr-1"/> Rechazar
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 bg-success text-success-foreground hover:bg-success/90" 
+                        disabled={actionLoading[e.id]}
+                        onClick={() => handleApprove(e.id)}
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1"/> Aprobar
+                      </Button>
                     </div>
                   </div>
                 ))

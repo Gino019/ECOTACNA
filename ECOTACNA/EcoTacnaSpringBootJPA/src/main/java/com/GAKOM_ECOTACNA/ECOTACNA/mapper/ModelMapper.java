@@ -37,16 +37,14 @@ public class ModelMapper {
         dto.setDireccion(request.getDireccion());
         dto.setObservaciones(request.getObservaciones());
         dto.setCreatedAt(request.getRequestedAt()); // or requestedAt
-
-        // Pago operativo (Etapa 2)
+        dto.setUpdatedAt(request.getUpdatedAt());
+        
         dto.setLitrosConfirmados(request.getLitrosConfirmados());
         dto.setPrecioPorLitro(request.getPrecioPorLitro());
         dto.setMontoTotal(request.getMontoTotal());
         dto.setEstadoPago(request.getEstadoPago());
         dto.setFechaConfirmacionPago(request.getFechaConfirmacionPago());
         dto.setObservacionPago(request.getObservacionPago());
-
-        dto.setUpdatedAt(request.getUpdatedAt());
         
         if (request.getTransportUnit() != null) {
             dto.setTransportePlaca(request.getTransportUnit().getPlate());

@@ -65,8 +65,6 @@ public class PickupRequest {
     @Column(columnDefinition = "TEXT")
     private String observaciones;
 
-    // --- Campos de pago operativo (Etapa 2) ---
-
     @Column(name = "litros_confirmados", precision = 12, scale = 2)
     private BigDecimal litrosConfirmados;
 
@@ -76,7 +74,7 @@ public class PickupRequest {
     @Column(name = "monto_total", precision = 12, scale = 2)
     private BigDecimal montoTotal;
 
-    @Column(name = "estado_pago", length = 20)
+    @Column(name = "estado_pago", length = 30)
     private String estadoPago;
 
     @Column(name = "fecha_confirmacion_pago")
@@ -87,13 +85,13 @@ public class PickupRequest {
 
     @PrePersist
     protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("America/Lima"));
         this.requestedAt = now;
         this.updatedAt = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(java.time.ZoneId.of("America/Lima"));
     }
 }

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { empresaApi } from "@/services/empresaApi";
 import { getStoredAuth } from "@/services/authStorage";
 import { empresaNav } from "./empresa/empresaNav";
+import type { PickupTrackingResponse } from "@/types";
 
 const timeline = [
   { label: "Pendiente", done: true },
@@ -24,21 +25,23 @@ const timeline = [
 export default function EmpresaDashboard() {
   const auth = getStoredAuth();
   const [user, setUser] = useState({
-    name: auth?.companyName || "Empresa",
+    name: auth?.companyName || "Información no disponible",
     sub: auth?.email || "No autenticado",
   });
   const [perfil, setPerfil] = useState<any>(null);
   const [resumen, setResumen] = useState<any>(null);
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
+  const [tracking, setTracking] = useState<PickupTrackingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [resPerfil, resResumen, resSolicitudes] = await Promise.all([
+        const [resPerfil, resResumen, resSolicitudes, resTracking] = await Promise.all([
           empresaApi.getPerfil(),
           empresaApi.getResumen(),
           empresaApi.getSolicitudes(),
+          empresaApi.getSeguimientoActivo()
         ]);
 
         if (resPerfil.success && resPerfil.data) {
@@ -61,6 +64,10 @@ export default function EmpresaDashboard() {
           setSolicitudes(resSolicitudes.data || []);
         } else {
           setError((prev) => prev || resSolicitudes.message || "No se pudieron cargar las solicitudes");
+        }
+
+        if (resTracking.success && resTracking.data) {
+          setTracking(resTracking.data);
         }
       } catch (err: any) {
         setError(err.message || "Error de red");
@@ -109,7 +116,7 @@ export default function EmpresaDashboard() {
             {perfil?.ruc ? <Badge variant="outline">RUC {perfil.ruc}</Badge> : null}
             {error ? <Badge variant="outline" className="text-destructive border-destructive">{error}</Badge> : null}
           </div>
-          <h1 className="font-display text-3xl font-bold">{perfil?.razonSocial || auth?.companyName || "Empresa"}</h1>
+          <h1 className="font-display text-3xl font-bold">{perfil?.razonSocial || auth?.companyName || "Información no disponible"}</h1>
           <p className="text-sm text-muted-foreground">{perfil?.direccion || "No autenticado"} · Panel de empresa generadora</p>
         </div>
         <Button asChild size="lg" className="bg-gradient-eco shadow-eco h-12">
@@ -130,19 +137,22 @@ export default function EmpresaDashboard() {
             <div>
               <h3 className="font-display font-bold flex items-center gap-2">
                 Seguimiento de recojo
-                <Badge variant="outline" className="text-[10px] text-warning border-warning">Mapa referencial</Badge>
               </h3>
-              <p className="text-xs text-muted-foreground">Mapa visual de referencia. No representa un recolector real mientras el backend de seguimiento no exista.</p>
+              <p className="text-xs text-muted-foreground">Mapa visual de referencia.</p>
             </div>
-            <Badge variant="outline">Referencial</Badge>
+            {tracking ? (
+              <Badge variant="outline" className="border-primary text-primary">En curso</Badge>
+            ) : (
+              <Badge variant="outline">En espera</Badge>
+            )}
           </div>
 
           <MapMock
             height="h-[300px]"
             showRoute
-            title="Seguimiento referencial"
+            title={tracking ? "Recojo en camino" : "Punto de recojo"}
             pins={[
-              { id: "1", label: "Referencia visual", sub: "Visual de referencia", x: 25, y: 65, type: "recolector" },
+              { id: "1", label: tracking?.recolector?.razonSocial || "Recolector", sub: tracking ? "En camino" : "No asignado", x: 25, y: 65, type: "recolector" },
               { id: "2", label: perfil?.razonSocial || auth?.companyName || "Mi empresa", sub: "Punto de recojo", x: 50, y: 45, type: "destacado" },
             ]}
           />
@@ -162,16 +172,54 @@ export default function EmpresaDashboard() {
         <Card className="p-5">
           <h3 className="font-display font-bold mb-4 flex items-center gap-2">
             Próxima entrega
-            <Badge variant="outline" className="text-[10px] text-warning border-warning">Pendiente backend</Badge>
           </h3>
           <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-3 p-3 bg-gradient-soft rounded-lg">
-              <Truck className="h-8 w-8 text-primary" />
-              <div>
-                <div className="font-semibold">Sin recolector aceptado</div>
-                <div className="text-xs text-muted-foreground">Solicitud en cola para aceptación voluntaria</div>
+            {tracking ? (
+              <div className="flex flex-col gap-4">
+                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-primary">Recolector asignado</span>
+                    <Badge className="bg-primary">{tracking.estado.replace("_", " ")}</Badge>
+                  </div>
+                  <div className="text-sm font-medium">{tracking.recolector?.razonSocial}</div>
+                  <div className="text-xs text-muted-foreground">{tracking.recolector?.correo}</div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Truck className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="font-semibold">Unidad asignada</div>
+                    {tracking.unidad ? (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {tracking.unidad.placa} · {tracking.unidad.marca} {tracking.unidad.modelo}<br/>
+                        Capacidad: {tracking.unidad.capacidadLitros} L · Tipo: {tracking.unidad.tipoUnidad}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground mt-1">Unidad pendiente de asignación</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 mt-2">
+                  <Package className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="font-semibold">Recojo programado</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {tracking.volumenAproximado} L · {tracking.direccion}<br/>
+                      Fecha: {tracking.fechaProgramada ? new Date(tracking.fechaProgramada).toLocaleDateString('es-PE') : "Pendiente"}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 bg-gradient-soft rounded-lg">
+                <Truck className="h-8 w-8 text-primary/50" />
+                <div>
+                  <div className="font-semibold">Sin recolector aceptado</div>
+                  <div className="text-xs text-muted-foreground">Tu solicitud aún está en cola para aceptación voluntaria.</div>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       </div>

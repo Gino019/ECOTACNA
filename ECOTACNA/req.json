@@ -1,0 +1,11 @@
+{
+  "ruc": "10000000001",
+  "email": "test@newcompany.com",
+  "password": "TestPass123",
+  "confirmPassword": "TestPass123",
+  "firstName": "Admin",
+  "lastName": "New",
+  "phone": "987654321",
+  "role": "GENERADOR",
+  "companyType": "GENERADORA"
+}

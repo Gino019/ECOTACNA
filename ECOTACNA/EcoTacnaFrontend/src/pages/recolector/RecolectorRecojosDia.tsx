@@ -1,46 +1,49 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
+import { Check, X, MapPin, Calendar, Droplet, User, Phone } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { getStoredAuth } from "@/services/authStorage";
 import { recolectorApi } from "@/services/recolectorApi";
 import { recolectorNav } from "./recolectorNav";
+import type { PickupRequest } from "@/types";
 
 export default function RecolectorRecojosDia() {
   const auth = getStoredAuth();
   const [user, setUser] = useState({ name: auth?.companyName || "Recolector", sub: auth?.email || "No autenticado" });
-  const [recojos, setRecojos] = useState<any[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const [recojos, setRecojos] = useState<PickupRequest[]>([]);
+  const [activeRequest, setActiveRequest] = useState<PickupRequest | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAccepting, setIsAccepting] = useState<number | null>(null);
 
   const loadData = async () => {
+    setLoading(true);
     try {
-      const [resPerfil, resRecojos] = await Promise.all([
+      const [resPerfil, resActivo] = await Promise.all([
         recolectorApi.getPerfil(),
-        recolectorApi.getSolicitudes(),
+        recolectorApi.getRecojoActivo(),
       ]);
 
       if (resPerfil.success && resPerfil.data) {
         setUser({ name: resPerfil.data.razonSocial, sub: resPerfil.data.correo || `RUC ${resPerfil.data.ruc}` });
       }
 
-      if (resRecojos.success) {
-        setRecojos(resRecojos.data || []);
-        setMessage(resRecojos.data?.length ? null : "No hay recojos programados para hoy.");
+      if (resActivo.success && resActivo.data) {
+        setActiveRequest(resActivo.data);
       } else {
-        setRecojos([]);
-        setMessage(resRecojos.message || "No hay recojos programados para hoy.");
+        const resRecojos = await recolectorApi.getSolicitudesDisponibles();
+        if (resRecojos.success && resRecojos.data) {
+          setRecojos(resRecojos.data);
+        } else {
+          setRecojos([]);
+        }
       }
     } catch (error: any) {
       setRecojos([]);
-      setMessage(error.message || "No hay recojos programados para hoy.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,109 +51,180 @@ export default function RecolectorRecojosDia() {
     loadData();
   }, []);
 
-  const handleConfirmar = async (recojo: any, volumenReal: number, observaciones: string, close: () => void) => {
+  const handleAceptar = async (id: number) => {
+    setIsAccepting(id);
     try {
-      const res = await recolectorApi.confirmarRecojo(
-        recojo.solicitudId,
-        volumenReal
-      );
-
-      if (!res.success) {
-        toast.error(res.message || "Pendiente backend");
-        return;
+      const res = await recolectorApi.aceptarSolicitud(id);
+      if (res.success && res.data) {
+        toast.success("Solicitud aceptada. Recojo en curso.");
+        setActiveRequest(res.data);
+        setRecojos([]);
+      } else {
+        toast.error(res.message || "Error al aceptar solicitud");
       }
+    } catch (e: any) {
+      toast.error(e.message || "Esta solicitud ya fue tomada por otro recolector.");
+      loadData();
+    } finally {
+      setIsAccepting(null);
+    }
+  };
 
-      toast.success(res.message || "Recolección confirmada");
-      close();
-      await loadData();
-    } catch (error: any) {
-      toast.error(error.message || "Pendiente backend");
+  const handleRechazar = async (id: number) => {
+    try {
+      const res = await recolectorApi.rechazarSolicitud(id);
+      if (res.success) {
+        toast.success("Solicitud descartada para tu empresa.");
+        setRecojos((prev) => prev.filter((r) => r.id !== id));
+      } else {
+        toast.error(res.message || "Error al rechazar solicitud");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error al rechazar solicitud.");
     }
   };
 
   return (
     <DashboardShell role="Recolector" user={user} nav={recolectorNav}>
       <div className="mb-6">
-        <Badge className="bg-accent text-accent-foreground mb-2">Hoy</Badge>
-        {message ? <Badge variant="outline" className="ml-2 text-muted-foreground">{message}</Badge> : null}
-        <h1 className="font-display text-3xl font-bold">Recojos del día</h1>
-        <p className="text-sm text-muted-foreground">Recolecciones reales vinculadas al recolector actual.</p>
+        <h1 className="font-display text-3xl font-bold">Recojos disponibles</h1>
+        <p className="text-sm text-muted-foreground">Solicitudes pendientes de restaurantes y generadores.</p>
       </div>
-      <Card className="p-5">
-        {recojos.length === 0 ? (
-          <div className="text-muted-foreground">{message || "No hay recojos programados para hoy."}</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Recolección</TableHead>
-                <TableHead>Solicitud</TableHead>
-                <TableHead>Empresa</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Litros</TableHead>
-                <TableHead>Transporte</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recojos.map((recojo) => (
-                <TableRow key={recojo.recoleccionId}>
-                  <TableCell className="font-mono text-xs">{recojo.recoleccionId}</TableCell>
-                  <TableCell className="font-mono text-xs">{recojo.solicitudId}</TableCell>
-                  <TableCell>{recojo.empresa}</TableCell>
-                  <TableCell>{recojo.fechaVisible}</TableCell>
-                  <TableCell>{recojo.litrosVisibles.toFixed(2)} L</TableCell>
-                  <TableCell><Badge variant="outline" className="font-mono">{recojo.transportePlaca}</Badge></TableCell>
-                  <TableCell>{recojo.estado}</TableCell>
-                  <TableCell>
-                    {(recojo.estado === "EN_RUTA" || recojo.estado === "PROGRAMADA") ? (
-                      <ConfirmarDialog recojo={recojo} onConfirm={handleConfirmar} />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Solo lectura</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
-    </DashboardShell>
-  );
-}
 
-function ConfirmarDialog({ recojo, onConfirm }: { recojo: any; onConfirm: (recojo: any, volumenReal: number, observaciones: string, close: () => void) => void; }) {
-  const [open, setOpen] = useState(false);
-  const [volumen, setVolumen] = useState(String(recojo.litrosVisibles || recojo.volumenAproximado || 0));
-  const [observaciones, setObservaciones] = useState("");
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">Confirmar</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirmar recolección {recojo.recoleccionId}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <div>
-            <Label>Litros reales</Label>
-            <Input type="number" value={volumen} onChange={(e) => setVolumen(e.target.value)} />
-          </div>
-          <div>
-            <Label>Observaciones</Label>
-            <Textarea rows={3} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
-          </div>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map((n) => (
+            <Card key={n} className="p-5 h-48 animate-pulse bg-muted/50" />
+          ))}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button className="bg-gradient-eco" onClick={() => onConfirm(recojo, Number(volumen), observaciones, () => setOpen(false))}>
-            <Check className="h-4 w-4 mr-1.5" /> Confirmar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      ) : activeRequest ? (
+        <div className="max-w-2xl mx-auto">
+          <Card className="flex flex-col h-full hover:shadow-md transition-shadow overflow-hidden border-primary/20 shadow-md">
+            <div className="bg-primary/5 p-4 border-b border-border flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-lg text-primary">Ya aceptaste este recojo</h3>
+                <p className="text-sm text-muted-foreground">Dirígete al punto de recolección según la fecha programada.</p>
+              </div>
+              <Badge className="bg-primary hover:bg-primary">
+                {activeRequest.estado?.replace("_", " ") || "EN CURSO"}
+              </Badge>
+            </div>
+            
+            <div className="p-5">
+              <h3 className="font-bold text-lg leading-tight line-clamp-2 mb-4">
+                {activeRequest.empresaRazonSocial || "Restaurante"}
+              </h3>
+              
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <span className="text-foreground/90 text-base">{activeRequest.direccion || "Dirección no provista"}</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Droplet className="h-5 w-5 text-blue-500 shrink-0" />
+                  <span className="font-medium text-foreground/90 text-base">{activeRequest.volumenAproximado?.toLocaleString("es-PE")} L <span className="text-muted-foreground font-normal">aprox.</span></span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground text-base">
+                    {activeRequest.fechaProgramada ? new Date(activeRequest.fechaProgramada).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Sin fecha programada"}
+                  </span>
+                </div>
+                
+                {activeRequest.observaciones && (
+                  <div className="mt-4 p-4 bg-muted/50 rounded-md text-sm italic text-muted-foreground border border-border/50">
+                    "{activeRequest.observaciones}"
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-4 bg-muted/30 border-t border-border flex justify-center">
+              <Button asChild className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
+                <a href="/recolector/mapa-operativo">Ver en mapa operativo</a>
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : recojos.length === 0 ? (
+        <Card className="p-10 flex flex-col items-center justify-center text-center">
+          <Calendar className="h-12 w-12 text-muted-foreground/30 mb-4" />
+          <p className="text-lg font-medium text-muted-foreground">
+            No hay recojos disponibles actualmente.
+          </p>
+          <p className="text-sm text-muted-foreground/70 mt-1">
+            Revisa más tarde para nuevas solicitudes.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {recojos.map((recojo) => (
+            <Card key={recojo.id} className="flex flex-col h-full hover:shadow-md transition-shadow overflow-hidden">
+              <div className="p-5 flex-1">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-bold text-lg leading-tight line-clamp-2">
+                      {recojo.empresaRazonSocial || "Restaurante"}
+                    </h3>
+                  </div>
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                    PENDIENTE
+                  </Badge>
+                </div>
+
+                <div className="space-y-2 mt-4 text-sm">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <span className="line-clamp-2 text-foreground/90">{recojo.direccion || "Dirección no provista"}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Droplet className="h-4 w-4 text-blue-500 shrink-0" />
+                    <span className="font-medium text-foreground/90">{recojo.volumenAproximado?.toLocaleString("es-PE")} L <span className="text-muted-foreground font-normal">aprox.</span></span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">
+                      {recojo.fechaSolicitud ? new Date(recojo.fechaSolicitud).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Sin fecha"}
+                    </span>
+                  </div>
+                  
+                  {recojo.observaciones && (
+                    <div className="mt-4 p-3 bg-muted/50 rounded-md text-xs italic text-muted-foreground">
+                      "{recojo.observaciones}"
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-muted/30 border-t border-border flex gap-3">
+                <Button 
+                  variant="outline" 
+                  className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30"
+                  onClick={() => handleRechazar(recojo.id)}
+                  disabled={isAccepting !== null}
+                >
+                  <X className="h-4 w-4 mr-1.5" /> Rechazar
+                </Button>
+                <Button 
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => handleAceptar(recojo.id)}
+                  disabled={isAccepting !== null}
+                >
+                  {isAccepting === recojo.id ? (
+                    <span className="flex items-center"><Check className="h-4 w-4 mr-1.5 animate-pulse" /> Aceptando...</span>
+                  ) : (
+                    <span className="flex items-center"><Check className="h-4 w-4 mr-1.5" /> Aceptar</span>
+                  )}
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </DashboardShell>
   );
 }

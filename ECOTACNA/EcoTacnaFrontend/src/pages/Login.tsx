@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, Building2, Mail, ShieldCheck, Sparkles, Truck, Lock } from "lucide-react";
-import PuzzleCaptcha from "@/components/PuzzleCaptcha";
+import { useState, useRef } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
+import { ArrowLeft, ArrowRight, Building2, Mail, ShieldCheck, Truck, Lock } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authApi } from "@/services/authApi";
-import { saveAuth } from "@/services/authStorage";
+import { clearStoredAuth, saveAuth } from "@/services/authStorage";
 import { toast } from "sonner";
+
+const isOperativeStatus = (status?: string | null) => status === "ACTIVA" || status === "PRUEBA_ACTIVA";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -24,8 +26,11 @@ const Login = () => {
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [captchaTokenAdmin, setCaptchaTokenAdmin] = useState("");
   const [captchaTokenUser, setCaptchaTokenUser] = useState("");
-  const [captchaKeyAdmin, setCaptchaKeyAdmin] = useState(0);
-  const [captchaKeyUser, setCaptchaKeyUser] = useState(0);
+  
+  const recaptchaAdminRef = useRef<ReCAPTCHA>(null);
+  const recaptchaUserRef = useRef<ReCAPTCHA>(null);
+  
+  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Lcl7wYtAAAAAEcjpZVi_ECqXcfCKHiu2To_x3ev";
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +52,7 @@ const Login = () => {
       }
     } catch (error: any) {
       toast.error(error.message || "Error de credenciales");
-      setCaptchaKeyAdmin(prev => prev + 1);
+      recaptchaAdminRef.current?.reset();
       setCaptchaTokenAdmin("");
     } finally {
       setIsLoadingAdmin(false);
@@ -69,13 +74,32 @@ const Login = () => {
         if (response.data.role !== expectedRole) {
           throw new Error(`El usuario no tiene rol de ${expectedRole}`);
         }
+        if (!isOperativeStatus(response.data.subscriptionStatus)) {
+          clearStoredAuth();
+
+          if (response.data.subscriptionStatus === "PENDIENTE_PAGO" && response.data.companyId) {
+            toast.info("Tu empresa esta aprobada, pero aun debe completar el pago para operar.");
+            navigate(`/pagos/checkout?companyId=${response.data.companyId}`);
+            return;
+          }
+
+          if (response.data.subscriptionStatus === "PENDIENTE") {
+            toast.info("Tu empresa aun esta en revision administrativa.");
+            navigate("/registro");
+            return;
+          }
+
+          toast.error("Tu empresa no tiene una suscripcion activa para ingresar al panel operativo.");
+          navigate("/suscripcion/estado");
+          return;
+        }
         saveAuth(response.data);
         toast.success("Acceso autorizado");
         navigate(`/${tipo}`);
       }
     } catch (error: any) {
       toast.error(error.message || "Error de credenciales");
-      setCaptchaKeyUser(prev => prev + 1);
+      recaptchaUserRef.current?.reset();
       setCaptchaTokenUser("");
     } finally {
       setIsLoadingUser(false);
@@ -96,7 +120,7 @@ const Login = () => {
           <div className="absolute inset-0 eco-grid-bg opacity-15" />
           <div className="relative space-y-6">
             <Badge className="bg-accent text-accent-foreground border-0">
-              <Sparkles className="h-3 w-3 mr-1" /> Acceso institucional
+              <ShieldCheck className="h-3 w-3 mr-1" /> Acceso administradores
             </Badge>
             <div>
               <h2 className="font-display text-3xl font-bold mb-2">Acceso Administrador</h2>
@@ -104,13 +128,16 @@ const Login = () => {
             </div>
 
             <form onSubmit={handleAdminSubmit} className="space-y-3">
-              <Input type="email" placeholder="Correo institucional" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="bg-primary-foreground text-foreground border-0 h-12" required />
+              <Input type="email" placeholder="Correo administrador" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="bg-primary-foreground text-foreground border-0 h-12" required />
               <Input type="password" placeholder="Contraseña" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="bg-primary-foreground text-foreground border-0 h-12" required />
               
-              <div className="flex justify-center py-2 w-full">
-                <PuzzleCaptcha 
-                  key={captchaKeyAdmin}
-                  onVerify={setCaptchaTokenAdmin}
+              <div className="flex justify-center py-2 bg-white rounded-xl border border-emerald-100 shadow-sm p-2 w-full">
+                <ReCAPTCHA 
+                  ref={recaptchaAdminRef}
+                  sitekey={siteKey} 
+                  onChange={(token) => setCaptchaTokenAdmin(token || "")}
+                  onExpired={() => setCaptchaTokenAdmin("")} 
+                  onErrored={() => setCaptchaTokenAdmin("")} 
                 />
               </div>
 
@@ -120,15 +147,7 @@ const Login = () => {
               </Button>
             </form>
 
-            <div className="bg-card/10 border border-card/20 rounded-xl p-4 backdrop-blur space-y-3">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <div className="font-semibold mb-1">Acceso restringido</div>
-                  <div className="text-primary-foreground/70 text-xs">Solo cuentas institucionales autorizadas.</div>
-                </div>
-              </div>
-            </div>
+
           </div>
         </Card>
 
@@ -153,7 +172,7 @@ const Login = () => {
               <Label htmlFor="email">Correo electrónico</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder={tipo === "empresa" ? "generadora@demo.com" : "operaciones@recolector.com"} className="pl-9 h-11" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} required />
+                <Input id="email" type="email" placeholder="Correo electrónico" className="pl-9 h-11" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} required />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -164,10 +183,13 @@ const Login = () => {
               </div>
             </div>
             
-            <div className="flex justify-center py-2 w-full">
-              <PuzzleCaptcha 
-                key={captchaKeyUser}
-                onVerify={setCaptchaTokenUser}
+            <div className="flex justify-center py-2 bg-white rounded-xl border shadow-sm p-2 w-full">
+              <ReCAPTCHA 
+                ref={recaptchaUserRef}
+                sitekey={siteKey} 
+                onChange={(token) => setCaptchaTokenUser(token || "")}
+                onExpired={() => setCaptchaTokenUser("")} 
+                onErrored={() => setCaptchaTokenUser("")} 
               />
             </div>
 

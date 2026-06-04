@@ -1,16 +1,17 @@
-import { apiClient, BASE_URL } from "./apiClient";
+import { apiClient } from "./apiClient";
+import type { PickupRequest } from "../types";
 
 export const empresaApi = {
   getPerfil: async () => {
-    return await apiClient<any>("/empresa/perfil", { method: "GET" });
+    return await apiClient<Record<string, unknown>>("/empresa/perfil", { method: "GET" });
   },
 
   getResumen: async () => {
-    return await apiClient<any>("/empresa/resumen", { method: "GET" });
+    return await apiClient<Record<string, unknown>>("/empresa/resumen", { method: "GET" });
   },
 
   getSolicitudes: async () => {
-    return await apiClient<any>("/empresa/solicitudes", { method: "GET" });
+    return await apiClient<PickupRequest[]>("/empresa/solicitudes", { method: "GET" });
   },
 
   crearSolicitud: async (body: {
@@ -19,50 +20,13 @@ export const empresaApi = {
     fechaProgramada: string;
     observaciones?: string;
   }) => {
-    return apiClient<any>("/empresa/solicitudes", {
+    return apiClient<PickupRequest>("/empresa/solicitudes", {
       method: "POST",
       body: JSON.stringify(body),
     });
   },
 
-  confirmarPagoOperativo: async (
-    solicitudId: number,
-    body: {
-      litrosConfirmados: number;
-      precioPorLitro: number;
-      observacionPago?: string;
-    }
-  ) => {
-    return apiClient<any>(`/empresa/solicitudes/${solicitudId}/confirmar-pago`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  },
-
-  descargarConstancia: async (solicitudId: number) => {
-    const authStr = localStorage.getItem("ecotacna_auth");
-    let token = null;
-    if (authStr) {
-      try {
-        const auth = JSON.parse(authStr);
-        token = auth?.token;
-      } catch (e) {}
-    }
-
-    const headers: HeadersInit = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${BASE_URL}/empresa/solicitudes/${solicitudId}/constancia`, {
-      method: "GET",
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error("No se pudo descargar la constancia PDF");
-    }
-
-    return await response.blob();
-  },
+  getSeguimientoActivo: async () => {
+    return await apiClient<import("../types").PickupTrackingResponse>("/empresa/seguimiento-activo", { method: "GET" });
+  }
 };

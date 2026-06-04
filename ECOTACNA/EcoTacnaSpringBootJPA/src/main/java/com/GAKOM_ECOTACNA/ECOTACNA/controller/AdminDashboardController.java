@@ -43,4 +43,30 @@ public class AdminDashboardController {
         return ResponseEntity.ok(new ApiResponse<>(true, "Usuarios del sistema",
                 adminDashboardService.getUsuarios()));
     }
+
+    @GetMapping("/recolectores")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> recolectores() {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Empresas recolectoras",
+                adminDashboardService.getEmpresasRecolectoras()));
+    }
+
+    @PostMapping("/empresas/{id}/approve")
+    public ResponseEntity<Map<String, Object>> approveCompany(@PathVariable Long id) {
+        return ResponseEntity.ok(adminDashboardService.approveCompany(id));
+    }
+
+    @PostMapping("/empresas/{id}/reject")
+    public ResponseEntity<Map<String, Object>> rejectCompany(@PathVariable Long id) {
+        return ResponseEntity.ok(adminDashboardService.rejectCompany(id));
+    }
+
+    @PostMapping("/recolectores/{id}/approve")
+    public ResponseEntity<Map<String, Object>> approveRecolectora(@PathVariable Long id) {
+        return ResponseEntity.ok(adminDashboardService.approveCompany(id));
+    }
+
+    @PostMapping("/recolectores/{id}/reject")
+    public ResponseEntity<Map<String, Object>> rejectRecolectora(@PathVariable Long id) {
+        return ResponseEntity.ok(adminDashboardService.rejectCompany(id));
+    }
 }

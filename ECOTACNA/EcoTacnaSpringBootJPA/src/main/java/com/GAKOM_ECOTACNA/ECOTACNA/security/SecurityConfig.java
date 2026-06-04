@@ -3,7 +3,6 @@ package com.GAKOM_ECOTACNA.ECOTACNA.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -33,12 +32,7 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(request -> {
                     var corsConfig = new org.springframework.web.cors.CorsConfiguration();
-                    String envOrigins = System.getenv("ALLOWED_ORIGINS");
-                    if (envOrigins != null && !envOrigins.trim().isEmpty()) {
-                        corsConfig.setAllowedOrigins(java.util.Arrays.asList(envOrigins.split(",")));
-                    } else {
-                        corsConfig.setAllowedOrigins(java.util.List.of("http://localhost:5173", "http://localhost:8081", "http://localhost:3000"));
-                    }
+                    corsConfig.setAllowedOrigins(java.util.List.of("http://localhost:5173", "http://localhost:8081", "http://localhost:3000"));
                     corsConfig.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
                     corsConfig.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Accept"));
                     return corsConfig;
@@ -47,8 +41,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health", "/api/health/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/public/plans", "/api/public/ruc/**", "/api/public/checkout/**", "/api/webhooks/culqi", "/api/public/captcha/**").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/registration-status/**").permitAll()
+                        .requestMatchers("/api/ruc/**").permitAll()
+                        .requestMatchers("/api/public/plans", "/api/public/checkout/**", "/api/public/payments/simulated/**").permitAll()
                         .requestMatchers("/", "/index.html", "/dashboard.html", "/css/**", "/js/**").permitAll()
 
                         .requestMatchers("/api/empresa/**").hasRole("GENERADOR")

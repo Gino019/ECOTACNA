@@ -34,4 +34,11 @@ public class CollectorPortalController {
         Map<String, Object> data = collectorPortalService.getSummary(principal.getUser().getId());
         return ResponseEntity.ok(new ApiResponse<>(true, "Resumen recolector", data));
     }
+
+    @GetMapping("/api/recolector/dashboard")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> dashboard(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Map<String, Object> data = collectorPortalService.getDashboard(principal.getUser());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Dashboard recolector", data));
+    }
 }

@@ -55,7 +55,7 @@ export const subscriptionApi = {
 
   getMySubscriptionStatus: async (): Promise<SubscriptionStatusResponse> => {
     const response = await apiClient<SubscriptionStatusResponse>('/subscriptions/me', { method: 'GET' });
-    if (!response.data) throw new Error(response.message || 'Error al obtener estado de suscripción');
+    if (!response.data) throw new Error(response.message || 'Error al obtener estado de suscripcion');
     return response.data;
   },
 
@@ -68,45 +68,6 @@ export const subscriptionApi = {
   getPublicCheckout: async (companyId: number): Promise<PublicCheckoutResponse> => {
     const response = await apiClient<PublicCheckoutResponse>(`/public/checkout/company/${companyId}`, { method: 'GET' });
     if (!response.data) throw new Error(response.message || 'Error al obtener checkout');
-    return response.data;
-  },
-
-  confirmPublicMockPayment: async (
-    companyId: number | string,
-    data: {
-      paymentMethod: string;
-      cardholderName: string;
-      email: string;
-      cardLast4: string;
-    }
-  ): Promise<any> => {
-    const response = await apiClient<any>(
-      `/public/checkout/company/${companyId}/confirm-mock-payment`,
-      {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }
-    );
-    if (!response.data) throw new Error(response.message || 'Error al procesar el pago mock público');
-    return response.data;
-  },
-
-  confirmPublicCulqiPayment: async (
-    companyId: number | string,
-    data: {
-      culqiToken: string;
-      paymentMethod: string;
-      email: string;
-    }
-  ): Promise<any> => {
-    const response = await apiClient<any>(
-      `/public/checkout/company/${companyId}/confirm-culqi-payment`,
-      {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }
-    );
-    if (!response.data) throw new Error(response.message || 'Error al procesar el pago Culqi');
     return response.data;
   }
 };

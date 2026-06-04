@@ -6,6 +6,7 @@ export interface EcotacnaAuth {
   companyId: number | null;
   companyName: string | null;
   companyType: string | null;
+  subscriptionStatus?: string | null;
 }
 
 export const authStorageKey = "ecotacna_auth";

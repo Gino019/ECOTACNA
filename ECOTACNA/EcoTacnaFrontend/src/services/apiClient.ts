@@ -8,7 +8,7 @@ const resolveBaseUrl = () => {
 
 export const BASE_URL = resolveBaseUrl();
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
   data?: T;
@@ -20,25 +20,28 @@ export class ApiError extends Error {
     public message: string,
     public isAuthError: boolean = false,
     public status?: number,
-    public data?: any
+    public data?: unknown
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
-const extractMessage = (payload: any, fallback: string) => {
-  if (payload && typeof payload.message === "string" && payload.message.trim()) return payload.message;
-  if (payload && typeof payload.error === "string" && payload.error.trim()) return payload.error;
+const extractMessage = (payload: unknown, fallback: string) => {
+  if (payload && typeof payload === "object") {
+    const p = payload as Record<string, unknown>;
+    if (typeof p.message === "string" && p.message.trim()) return p.message;
+    if (typeof p.error === "string" && p.error.trim()) return p.error;
+  }
   return fallback;
 };
 
-const normalizePayload = <T>(payload: any, status: number): ApiResponse<T> => {
+const normalizePayload = <T>(payload: unknown, status: number): ApiResponse<T> => {
   if (payload && typeof payload === "object" && !Array.isArray(payload) && "success" in payload) {
     return {
-      success: Boolean(payload.success),
-      message: extractMessage(payload, payload.success ? "OK" : "Error en la petición"),
-      data: payload.data !== undefined ? payload.data : null,
+      success: Boolean((payload as Record<string, unknown>).success),
+      message: extractMessage(payload, (payload as Record<string, unknown>).success ? "OK" : "Error en la petición"),
+      data: (payload as Record<string, unknown>).data !== undefined ? (payload as Record<string, unknown>).data as T : undefined,
       status,
     };
   }
@@ -63,7 +66,9 @@ export async function apiClient<T>(
       if (auth && auth.token) {
         token = auth.token;
       }
-    } catch (e) {}
+    } catch (e) {
+      // ignore parsing error
+    }
   }
 
   const headers: HeadersInit = {
@@ -73,7 +78,7 @@ export async function apiClient<T>(
   };
 
   if (token) {
-    (headers as any)["Authorization"] = `Bearer ${token}`;
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
 
   try {
@@ -83,7 +88,7 @@ export async function apiClient<T>(
     });
 
     const rawText = await response.text().catch(() => "");
-    let parsed: any = null;
+    let parsed: unknown = null;
     if (rawText) {
       try {
         parsed = JSON.parse(rawText);
@@ -102,8 +107,9 @@ export async function apiClient<T>(
     }
 
     return normalized;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError(error.message || "Error de red", false);
+    const msg = error instanceof Error ? error.message : "Error de red";
+    throw new ApiError(msg, false);
   }
 }

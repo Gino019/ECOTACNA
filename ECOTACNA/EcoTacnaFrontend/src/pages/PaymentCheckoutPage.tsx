@@ -76,23 +76,13 @@ const PaymentCheckoutPage: React.FC = () => {
     }
   };
 
-  const PAYMENTS_MODE = import.meta.env.VITE_PAYMENTS_MODE || 'mock';
-  const CULQI_PUBLIC_KEY = import.meta.env.VITE_CULQI_PUBLIC_KEY || 'pk_test_dummy';
-
-  const isRealKey = CULQI_PUBLIC_KEY && CULQI_PUBLIC_KEY.startsWith('pk_test_') && CULQI_PUBLIC_KEY !== 'pk_test_dummy';
-  const effectiveMode = (PAYMENTS_MODE === 'culqi' && isRealKey) ? 'culqi' : 'mock';
+  const PAYMENTS_MODE = import.meta.env.VITE_PAYMENTS_MODE || 'simulated';
 
   useEffect(() => {
-    if (PAYMENTS_MODE === 'culqi' && !isRealKey) {
-      console.warn("Falta configurar VITE_CULQI_PUBLIC_KEY real para usar Culqi");
-    } else if (effectiveMode === 'culqi') {
-      console.log("Modo Culqi sandbox activo");
-    } else {
-      console.log("Modo mock activo");
-    }
-  }, [effectiveMode]);
+    console.log(`Modo de pagos EcoTacna: ${PAYMENTS_MODE}`);
+  }, []);
 
-  const handleMockPayment = async () => {
+  const handleSimulatedPayment = async () => {
     if (!selectedPlan) return;
     try {
       setProcessing(true);
@@ -102,16 +92,26 @@ const PaymentCheckoutPage: React.FC = () => {
       
       if (companyId) {
         // Flujo público de registro
-        console.log('Procesando pago mock público para companyId:', companyId);
+        console.log('Procesando pago simulado público para companyId:', companyId);
         
         // Extraemos últimos 4 dígitos de la tarjeta
-        const last4 = cardNumber.replace(/\s+/g, '').slice(-4) || '4242';
-        
-        const response = await subscriptionApi.confirmPublicMockPayment(Number(companyId), {
-          paymentMethod: 'CARD',
-          cardholderName: cardholderName || 'Rosa Mamani Flores',
+        const token = await paymentApi.createSimulatedToken({
+          cardNumber,
+          cvv,
+          expiry,
           email: email || 'demo.generador.01@ecotacna.test',
-          cardLast4: last4
+          cardholderName: cardholderName || 'Rosa Mamani Flores'
+        });
+        
+        // Clear card details immediately to avoid keeping sensitive data in state
+        setCardNumber('');
+        setCvv('');
+        setExpiry('');
+
+        const response = await paymentApi.confirmSimulatedPayment(Number(companyId), {
+          paymentMethod: 'CARD',
+          simulatedToken: token.id,
+          email: email || 'demo.generador.01@ecotacna.test'
         });
         
         console.log('Respuesta de confirmación pública:', response);
@@ -136,7 +136,12 @@ const PaymentCheckoutPage: React.FC = () => {
         }, 2000);
       }
     } catch (err: any) {
-      console.error('Error al procesar el pago mock:', err);
+      // Clear card details immediately on error as well
+      setCardNumber('');
+      setCvv('');
+      setExpiry('');
+
+      console.error('Error al procesar el pago simulado:', err);
       const backendMessage = err.message || err.data?.message || err.response?.data?.message;
       setError(backendMessage || 'Error al procesar el pago.');
     } finally {
@@ -144,115 +149,8 @@ const PaymentCheckoutPage: React.FC = () => {
     }
   };
 
-  const handleCulqiPayment = async () => {
-    if (!selectedPlan) return;
-    try {
-      setProcessing(true);
-      setError('');
-      
-      const companyId = searchParams.get('companyId');
-      if (!companyId) {
-        setError('Id de empresa no válido para el flujo Culqi público.');
-        return;
-      }
-
-      // Validar inputs locales
-      if (!cardholderName.trim()) {
-        setError('El nombre del titular es requerido.');
-        return;
-      }
-      if (!email.trim()) {
-        setError('El correo electrónico es requerido.');
-        return;
-      }
-      
-      // Tokenizar la tarjeta con Culqi API
-      console.log('Tokenizando tarjeta con Culqi Sandbox...');
-      
-      const cleanedCardNumber = cardNumber.replace(/\s+/g, '');
-      if (cleanedCardNumber.length < 13) {
-        setError('Número de tarjeta no válido.');
-        return;
-      }
-
-      const expiryParts = expiry.split('/');
-      if (expiryParts.length !== 2) {
-        setError('Fecha de vencimiento no válida. Usar formato MM/AA.');
-        return;
-      }
-      const expMonth = Number(expiryParts[0].trim());
-      const expYear = Number('20' + expiryParts[1].trim());
-
-      if (isNaN(expMonth) || expMonth < 1 || expMonth > 12) {
-        setError('Mes de expiración no válido.');
-        return;
-      }
-      if (isNaN(expYear) || expYear < 2026) {
-        setError('Año de expiración no válido.');
-        return;
-      }
-      if (cvv.length < 3 || cvv.length > 4) {
-        setError('Código de seguridad CVV no válido.');
-        return;
-      }
-
-      // Realizar llamada POST directa a Culqi para tokenizar la tarjeta (PCI-Compliant)
-      const culqiTokenRes = await fetch('https://secure.culqi.com/v2/tokens', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${CULQI_PUBLIC_KEY}`
-        },
-        body: JSON.stringify({
-          card_number: cleanedCardNumber,
-          cvv: cvv,
-          expiration_month: expMonth,
-          expiration_year: expYear,
-          email: email
-        })
-      });
-
-      const tokenData = await culqiTokenRes.json();
-      
-      if (!culqiTokenRes.ok || tokenData.object === 'error') {
-        const errorMsg = tokenData.user_message || tokenData.merchant_message || 'Error al tokenizar con Culqi.';
-        throw new Error(errorMsg);
-      }
-
-      const tokenId = tokenData.id;
-      console.log('Tokenización exitosa. Token:', tokenId);
-
-      // Limpiar campos sensibles en el estado del componente
-      setCardNumber('');
-      setCvv('');
-      setExpiry('');
-
-      // Enviar token al backend de EcoTacna
-      console.log('Enviando token Culqi al backend...');
-      const response = await subscriptionApi.confirmPublicCulqiPayment(Number(companyId), {
-        culqiToken: tokenId,
-        paymentMethod: 'CARD',
-        email: email
-      });
-
-      console.log('Suscripción activada con Culqi:', response);
-      setCheckoutResult(response);
-      setSuccess(true);
-    } catch (err: any) {
-      console.error('Error procesando pago con Culqi:', err);
-      const backendMessage = err.message || err.data?.message || err.response?.data?.message;
-      setError(backendMessage || 'Error al procesar el pago con Culqi.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const handlePaymentSubmit = async () => {
-    if (effectiveMode === 'culqi') {
-      await handleCulqiPayment();
-    } else {
-      await handleMockPayment();
-    }
+    await handleSimulatedPayment();
   };
 
   if (loading) return <div className="text-center p-8 text-gray-500">Cargando planes...</div>;
@@ -358,7 +256,7 @@ const PaymentCheckoutPage: React.FC = () => {
           <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-green-100 overflow-hidden animate-fade-in">
             <div className="bg-green-600 p-8 text-center text-white relative">
               <div className="absolute top-4 right-4 bg-green-500/30 px-3 py-1 rounded-full text-xs font-semibold">
-                Modo Sandbox / Mock
+                Pago simulado
               </div>
               <CheckCircle className="w-16 h-16 text-white mx-auto mb-4" />
               <h3 className="text-3xl font-extrabold mb-1">¡Transacción Aprobada!</h3>
@@ -589,8 +487,37 @@ const PaymentCheckoutPage: React.FC = () => {
                     <p>La renovación automática mensual requiere tarjeta. Yape puede usarse como pago manual.</p>
                   </div>
 
-                  {/* Mock Form */}
+                  {/* Simulated payment form */}
                   <div className="space-y-4 mb-8">
+                    {/* Whitelist Card Selector */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-2">
+                      <span className="text-xs font-semibold text-gray-700 block mb-2">Tarjetas de Prueba (Demostración):</span>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {[
+                          { number: "4111 1111 1111 1111", label: "Aprobada", scenario: "APPROVED", cvv: "123", expiry: "12/29" },
+                          { number: "4111 2222 3333 4444", label: "Aprobada Alt", scenario: "APPROVED", cvv: "123", expiry: "12/29" },
+                          { number: "4000 0000 0000 0002", label: "Rechazada", scenario: "REJECTED", cvv: "123", expiry: "12/29" },
+                          { number: "4000 0000 0000 9995", label: "Insuficiente", scenario: "FUNDS_INSUFFICIENT", cvv: "123", expiry: "12/29" },
+                          { number: "4000 0000 0000 0069", label: "Vencida", scenario: "EXPIRED", cvv: "123", expiry: "12/29" },
+                          { number: "4000 0000 0000 0127", label: "CVV Inválido", scenario: "CVV_INVALID", cvv: "999", expiry: "12/29" }
+                        ].map((tc) => (
+                          <button
+                            key={tc.number}
+                            type="button"
+                            onClick={() => {
+                              setCardNumber(tc.number);
+                              setCvv(tc.cvv);
+                              setExpiry(tc.expiry);
+                            }}
+                            className="px-2 py-1.5 bg-white border border-gray-300 hover:border-green-500 rounded text-[11px] text-gray-700 font-medium transition-colors text-left truncate flex flex-col justify-between"
+                          >
+                            <span className="font-bold text-green-700 text-[10px]">{tc.label}</span>
+                            <span className="text-[10px] text-gray-500">{tc.number}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nombre del titular</label>
@@ -672,35 +599,17 @@ const PaymentCheckoutPage: React.FC = () => {
                   )}
 
                   {/* Status Banner */}
-                  {PAYMENTS_MODE === 'culqi' && !isRealKey ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start mb-6">
-                      <Info className="w-4 h-4 text-amber-600 mr-2 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="font-bold text-amber-800 text-xs">Falta configurar VITE_CULQI_PUBLIC_KEY real para usar Culqi</h4>
-                        <p className="text-[10px] text-amber-700 mt-0.5">El sistema ha cambiado automáticamente a <strong>Modo mock activo</strong> debido a que no se ha configurado una clave pública sandbox real (pk_test_...).</p>
-                      </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start mb-6">
+                    <Info className="w-4 h-4 text-blue-600 mr-2 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-blue-800 text-xs">Modo demostración: usa únicamente tarjetas ficticias de prueba. No ingreses datos reales. No se realizará ningún cargo.</h4>
+                      <p className="text-[10px] text-blue-700 mt-0.5">Esta API permite validar el flujo académico de activación de suscripciones de forma 100% local y simulada.</p>
                     </div>
-                  ) : effectiveMode === 'culqi' ? (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start mb-6">
-                      <CheckCircle className="w-4 h-4 text-green-600 mr-2 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="font-bold text-green-800 text-xs">Modo Culqi sandbox activo</h4>
-                        <p className="text-[10px] text-green-700 mt-0.5">Se tokenizará la tarjeta mediante los servidores seguros de Culqi Sandbox.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start mb-6">
-                      <Info className="w-4 h-4 text-blue-600 mr-2 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="font-bold text-blue-800 text-xs">Modo mock activo</h4>
-                        <p className="text-[10px] text-blue-700 mt-0.5">El cobro y activación de la suscripción se simularán de forma local.</p>
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   <div className="flex items-start text-green-700 text-xs mb-8">
                     <Lock className="w-4 h-4 mr-2 shrink-0" />
-                    <p>Los datos de tarjeta serán tokenizados por Culqi.<br/>EcoTacna no almacena número de tarjeta, CVV ni fecha de vencimiento.</p>
+                    <p>API de Pagos Simulada EcoTacna activa.<br/>No se guarda el número completo de tarjeta ni el CVV.</p>
                   </div>
 
                   <div className="flex justify-end">

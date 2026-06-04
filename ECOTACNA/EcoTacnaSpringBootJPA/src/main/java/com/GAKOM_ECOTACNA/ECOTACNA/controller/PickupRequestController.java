@@ -12,9 +12,6 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ContentDisposition;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,7 +56,7 @@ public class PickupRequestController {
                         ModelMapper.toPickupRequestResponse(created)));
     }
 
-    @GetMapping("/api/recolector/solicitudes")
+    @GetMapping({"/api/recolector/solicitudes", "/api/recolector/solicitudes-aceptadas", "/api/recolector/recojos-dia"})
     public ResponseEntity<ApiResponse<List<PickupRequestResponse>>> listByCollector(
             @AuthenticationPrincipal UserPrincipal principal) {
         List<PickupRequestResponse> data = pickupRequestService
@@ -88,38 +85,69 @@ public class PickupRequestController {
         return ResponseEntity.ok(new ApiResponse<>(true, "Solicitud confirmada", ModelMapper.toPickupRequestResponse(updated)));
     }
 
-    // ── Etapa 2: Confirmación de pago operativo por la empresa ──
+    @GetMapping("/api/recolector/solicitudes-disponibles")
+    public ResponseEntity<ApiResponse<List<PickupRequestResponse>>> getAvailableRequests(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<PickupRequestResponse> data = pickupRequestService
+                .getAvailableRequests(principal.getCompany()).stream()
+                .map(ModelMapper::toPickupRequestResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Solicitudes disponibles", data));
+    }
 
-    @PostMapping("/api/empresa/solicitudes/{solicitudId}/confirmar-pago")
-    public ResponseEntity<ApiResponse<PickupRequestResponse>> confirmarPagoOperativo(
-            @PathVariable Long solicitudId,
-            @Valid @RequestBody com.GAKOM_ECOTACNA.ECOTACNA.dto.ConfirmarPagoOperativoRequest requestDto,
+    @PostMapping("/api/recolector/solicitudes/{id}/aceptar")
+    public ResponseEntity<ApiResponse<PickupRequestResponse>> acceptRequest(
+            @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal,
             HttpServletRequest servletRequest) {
-        PickupRequest updated = pickupRequestService.confirmarPagoOperativo(
+        PickupRequest updated = pickupRequestService.acceptRequest(id, principal.getUser(), principal.getCompany(), servletRequest.getRemoteAddr());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Solicitud aceptada", ModelMapper.toPickupRequestResponse(updated)));
+    }
+
+    @PostMapping("/api/recolector/solicitudes/{id}/rechazar")
+    public ResponseEntity<ApiResponse<Void>> rejectRequest(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        pickupRequestService.rejectRequest(id, principal.getCompany());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Solicitud rechazada exitosamente", null));
+    }
+
+    @GetMapping("/api/recolector/recojo-activo")
+    public ResponseEntity<ApiResponse<PickupRequestResponse>> getActiveRequest(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        PickupRequest active = pickupRequestService.getActiveRequest(principal.getUser().getId());
+        if (active == null) {
+            return ResponseEntity.ok(new ApiResponse<>(true, "No hay recojo activo", null));
+        }
+        return ResponseEntity.ok(new ApiResponse<>(true, "Recojo activo encontrado", ModelMapper.toPickupRequestResponse(active)));
+    }
+
+    @GetMapping("/api/empresa/seguimiento-activo")
+    public ResponseEntity<ApiResponse<com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse>> getActiveTrackingForCompany(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse active = pickupRequestService.getTrackingForGenerator(principal.getCompany().getId());
+        if (active == null) {
+            return ResponseEntity.ok(new ApiResponse<>(true, "No hay recojo activo", null));
+        }
+        return ResponseEntity.ok(new ApiResponse<>(true, "Seguimiento activo", active));
+    }
+
+    @PostMapping("/api/empresa/solicitudes/{solicitudId}/confirmar-pago")
+    public ResponseEntity<ApiResponse<com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse>> confirmarPago(
+            @PathVariable Long solicitudId,
+            @Valid @RequestBody com.GAKOM_ECOTACNA.ECOTACNA.dto.OperationalPaymentConfirmationRequest requestDto,
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletRequest servletRequest) {
+        PickupRequest updated = pickupRequestService.confirmarPago(
                 solicitudId,
-                principal.getCompany().getId(),
+                principal.getCompany(),
+                principal.getUser(),
                 requestDto.getLitrosConfirmados(),
                 requestDto.getPrecioPorLitro(),
                 requestDto.getObservacionPago(),
-                principal.getUser(),
-                servletRequest.getRemoteAddr());
-        return ResponseEntity.ok(new ApiResponse<>(true, "Pago operativo confirmado exitosamente",
-                ModelMapper.toPickupRequestResponse(updated)));
-    }
-
-    @GetMapping("/api/empresa/solicitudes/{solicitudId}/constancia")
-    public ResponseEntity<byte[]> descargarConstancia(
-            @PathVariable Long solicitudId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        byte[] pdfBytes = pickupRequestService.generarConstanciaPdf(solicitudId, principal.getCompany().getId());
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDisposition(ContentDisposition.builder("attachment")
-                .filename("constancia_" + solicitudId + ".pdf")
-                .build());
-
-        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+                servletRequest.getRemoteAddr()
+        );
+        com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse responseDto = pickupRequestService.buildTrackingResponse(updated);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Pago operativo confirmado y recojo completado exitosamente", responseDto));
     }
 }

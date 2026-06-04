@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
-import Registro from "./pages/Registro";
+import RegisterCompanyPage from "./pages/RegisterCompanyPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminEmpresas from "./pages/admin/AdminEmpresas";
 import AdminRecolectores from "./pages/admin/AdminRecolectores";
@@ -39,7 +39,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/registro" element={<Registro />} />
+          <Route path="/registro" element={<RegisterCompanyPage />} />
           <Route path="/suscripcion/estado" element={<SubscriptionStatusPage />} />
           <Route path="/pagos/checkout" element={<PaymentCheckoutPage />} />
 

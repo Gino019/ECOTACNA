@@ -51,8 +51,10 @@ public class AuthController {
                 request.getRuc(),
                 request.getEmail(),
                 request.getPassword(),
+                request.getConfirmPassword(),
                 request.getFirstName(),
                 request.getLastName(),
+                request.getPhone(),
                 request.getRole(),
                 null,
                 ipAddress
@@ -72,6 +74,10 @@ public class AuthController {
                 .companyName(user.getCompany() != null ? user.getCompany().getBusinessName() : "ADMINISTRACIÓN")
                 .companyId(user.getCompany() != null ? user.getCompany().getId() : null)
                 .userId(user.getId())
+                .companyType(user.getCompany() != null && user.getCompany().getCompanyType() != null
+                        ? user.getCompany().getCompanyType().name() : null)
+                .subscriptionStatus(user.getCompany() != null && user.getCompany().getSubscriptionStatus() != null
+                        ? user.getCompany().getSubscriptionStatus().name() : null)
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -102,8 +108,21 @@ public class AuthController {
                 .companyName(user.getCompany() != null ? user.getCompany().getBusinessName() : "ADMINISTRACIÓN")
                 .companyId(user.getCompany() != null ? user.getCompany().getId() : null)
                 .userId(user.getId())
+                .companyType(user.getCompany() != null && user.getCompany().getCompanyType() != null
+                        ? user.getCompany().getCompanyType().name() : null)
+                .subscriptionStatus(user.getCompany() != null && user.getCompany().getSubscriptionStatus() != null
+                        ? user.getCompany().getSubscriptionStatus().name() : null)
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para consultar el estado del registro de una empresa por RUC.
+     */
+    @org.springframework.web.bind.annotation.GetMapping("/registration-status/{ruc}")
+    public ResponseEntity<com.GAKOM_ECOTACNA.ECOTACNA.dto.RegistrationStatusResponse> getRegistrationStatus(
+            @org.springframework.web.bind.annotation.PathVariable String ruc) {
+        return ResponseEntity.ok(authService.consultarEstadoRegistroPorRuc(ruc));
     }
 }

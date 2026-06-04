@@ -27,4 +27,42 @@ public interface PickupRequestRepository extends JpaRepository<PickupRequest, Lo
             ORDER BY COALESCE(pr.scheduledAt, pr.requestedAt) DESC
             """)
     List<PickupRequest> findByCollectorUserId(@Param("collectorUserId") Long collectorUserId);
+
+    @Query("""
+            SELECT pr FROM PickupRequest pr JOIN FETCH pr.company 
+            WHERE pr.status = :status 
+            AND pr.collectorUserId IS NULL
+            AND NOT EXISTS (
+                SELECT 1 FROM CollectorRejectedRequest crr 
+                WHERE crr.pickupRequest = pr 
+                AND crr.collectorCompany.id = :collectorCompanyId
+            )
+            ORDER BY pr.requestedAt DESC
+            """)
+    List<PickupRequest> findAvailableRequests(@Param("collectorCompanyId") Long collectorCompanyId, @Param("status") PickupRequestStatus status);
+
+    @Query("""
+            SELECT pr FROM PickupRequest pr JOIN FETCH pr.company
+            WHERE pr.collectorUserId = :collectorUserId
+            AND pr.status IN (:statuses)
+            ORDER BY pr.scheduledAt ASC, pr.requestedAt ASC
+            LIMIT 1
+            """)
+    PickupRequest findFirstActiveRequest(@Param("collectorUserId") Long collectorUserId, @Param("statuses") List<PickupRequestStatus> statuses);
+
+    @Query("""
+            SELECT COUNT(pr) > 0 FROM PickupRequest pr 
+            WHERE pr.collectorUserId IN (SELECT u.id FROM User u WHERE u.company.id = :companyId)
+            AND pr.status IN (:statuses)
+            """)
+    boolean existsActiveRequestByCollectorCompanyId(@Param("companyId") Long companyId, @Param("statuses") List<PickupRequestStatus> statuses);
+
+    @Query("""
+            SELECT pr FROM PickupRequest pr JOIN FETCH pr.company
+            WHERE pr.company.id = :companyId
+            AND pr.status IN (:statuses)
+            ORDER BY pr.scheduledAt ASC, pr.requestedAt ASC
+            LIMIT 1
+            """)
+    PickupRequest findFirstActiveRequestByCompanyId(@Param("companyId") Long companyId, @Param("statuses") List<PickupRequestStatus> statuses);
 }

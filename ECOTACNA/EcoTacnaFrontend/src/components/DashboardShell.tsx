@@ -24,11 +24,11 @@ const roleStyles = {
 
 export const DashboardShell = ({ role, user, nav, children }: Props) => {
   const navigate = useNavigate();
-  const storedAuth = useMemo(() => (role === "Empresa" ? getStoredAuth() : null), [role]);
-  const displayUser = role === "Empresa" && storedAuth
+  const storedAuth = useMemo(() => getStoredAuth(), []);
+  const displayUser = storedAuth
     ? {
-        name: user.name && !["Empresa", "Empresa Generadora"].includes(user.name) ? user.name : (storedAuth.companyName || "Empresa"),
-        sub: user.sub && !["Desconectado", "Sin perfil", "Cargando perfil..."].includes(user.sub) ? user.sub : (storedAuth.email || "No autenticado"),
+        name: user.name && !["Empresa", "Empresa Generadora", "Recolector", "Cargando..."].includes(user.name) ? user.name : (storedAuth.companyName || "Información no disponible"),
+        sub: user.sub && !["Desconectado", "Sin perfil", "Cargando perfil...", "Cargando..."].includes(user.sub) ? user.sub : (storedAuth.email || "No autenticado"),
       }
     : user;
 
@@ -67,7 +67,7 @@ export const DashboardShell = ({ role, user, nav, children }: Props) => {
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-30">
           <div>
             <div className="text-xs text-muted-foreground">Bienvenido</div>
-            <div className="font-semibold text-sm">{displayUser.name || "Empresa"}</div>
+            <div className="font-semibold text-sm">{displayUser.name || "Información no disponible"}</div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="relative">
@@ -78,10 +78,10 @@ export const DashboardShell = ({ role, user, nav, children }: Props) => {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
                   <div className="w-8 h-8 rounded-full bg-gradient-eco flex items-center justify-center text-primary-foreground text-xs font-bold">
-                    {(displayUser.name || "EM").split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                    {(displayUser.name || "IN").split(" ").map((n) => n[0]).slice(0, 2).join("")}
                   </div>
                   <div className="text-left leading-tight hidden sm:block">
-                    <div className="text-xs font-semibold">{displayUser.name || "Empresa"}</div>
+                    <div className="text-xs font-semibold">{displayUser.name || "Información no disponible"}</div>
                     <div className="text-[10px] text-muted-foreground">{displayUser.sub || "No autenticado"}</div>
                   </div>
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />

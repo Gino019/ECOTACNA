@@ -11,5 +11,5 @@ public class PaymentInitResponse {
     private BigDecimal amount;
     private String currency;
     private String status;
-    private String providerPaymentId; // e.g., Culqi order/charge id if generated
+    private String providerPaymentId;
 }

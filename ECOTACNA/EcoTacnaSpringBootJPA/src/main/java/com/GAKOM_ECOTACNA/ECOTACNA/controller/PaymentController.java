@@ -2,7 +2,6 @@ package com.GAKOM_ECOTACNA.ECOTACNA.controller;
 
 import com.GAKOM_ECOTACNA.ECOTACNA.dto.*;
 import com.GAKOM_ECOTACNA.ECOTACNA.model.User;
-import com.GAKOM_ECOTACNA.ECOTACNA.service.CulqiPaymentService;
 import com.GAKOM_ECOTACNA.ECOTACNA.service.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class PaymentController {
 
     private final PaymentService paymentService;
-    private final CulqiPaymentService culqiPaymentService;
 
     @Autowired
-    public PaymentController(PaymentService paymentService, CulqiPaymentService culqiPaymentService) {
+    public PaymentController(PaymentService paymentService) {
         this.paymentService = paymentService;
-        this.culqiPaymentService = culqiPaymentService;
     }
 
     @PostMapping("/init")
@@ -36,11 +33,5 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<PaymentResponse>> confirmMockPayment(@AuthenticationPrincipal User user, @Valid @RequestBody MockPaymentRequest request) {
         PaymentResponse response = paymentService.confirmMockPayment(user, request);
         return ResponseEntity.ok(new ApiResponse<>(true, "Pago procesado via Mock", response));
-    }
-
-    @PostMapping("/culqi/confirm")
-    public ResponseEntity<ApiResponse<PaymentResponse>> confirmCulqiPayment(@AuthenticationPrincipal User user, @Valid @RequestBody CulqiPaymentConfirmRequest request) {
-        PaymentResponse response = culqiPaymentService.confirmCulqiPayment(user, request);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Pago procesado via Culqi Sandbox", response));
     }
 }

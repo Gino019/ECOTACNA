@@ -22,7 +22,7 @@ public class PickupRequestService {
     private final CompanyRepository companyRepository;
     private final AuditLogService auditLogService;
     private final SubscriptionValidator subscriptionValidator;
-    private final ConstanciaPdfService constanciaPdfService;
+    private final CollectorRejectedRequestRepository rejectedRequestRepository;
 
     @Autowired
     public PickupRequestService(PickupRequestRepository pickupRequestRepository,
@@ -31,14 +31,14 @@ public class PickupRequestService {
                                 CompanyRepository companyRepository,
                                 AuditLogService auditLogService,
                                 SubscriptionValidator subscriptionValidator,
-                                ConstanciaPdfService constanciaPdfService) {
+                                CollectorRejectedRequestRepository rejectedRequestRepository) {
         this.pickupRequestRepository = pickupRequestRepository;
         this.userRepository = userRepository;
         this.transportUnitRepository = transportUnitRepository;
         this.companyRepository = companyRepository;
         this.auditLogService = auditLogService;
         this.subscriptionValidator = subscriptionValidator;
-        this.constanciaPdfService = constanciaPdfService;
+        this.rejectedRequestRepository = rejectedRequestRepository;
     }
 
     @Transactional
@@ -106,7 +106,7 @@ public class PickupRequestService {
 
         request.setActualVolumeLiters(actualVolume);
         request.setCollectedAt(LocalDateTime.now());
-        request.setStatus(PickupRequestStatus.COMPLETADO);
+        request.setStatus(PickupRequestStatus.RECOGIDO);
         request = pickupRequestRepository.save(request);
 
         auditLogService.log(collector, collector.getEmail(), "SOLICITUD_RECOGIDA",
@@ -173,105 +173,6 @@ public class PickupRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud de recojo no encontrada."));
     }
 
-    @Transactional
-    public PickupRequest confirmarPagoOperativo(Long solicitudId, Long companyId,
-                                                 BigDecimal litrosConfirmados, BigDecimal precioPorLitro,
-                                                 String observacionPago, User user, String ipAddress) {
-        PickupRequest request = getById(solicitudId);
-
-        // 1. La solicitud debe pertenecer a la empresa autenticada
-        if (!request.getCompany().getId().equals(companyId)) {
-            throw new BusinessException("La solicitud no pertenece a su empresa.");
-        }
-
-        // 2. Debe tener recolector asignado
-        if (request.getCollectorUserId() == null) {
-            throw new BusinessException("La solicitud no tiene recolector asignado.");
-        }
-
-        // 3. Debe estar en estado activo (no COMPLETADO ni CANCELADO)
-        if (request.getStatus() != PickupRequestStatus.PROGRAMADO
-                && request.getStatus() != PickupRequestStatus.EN_RUTA
-                && request.getStatus() != PickupRequestStatus.RECOGIDO) {
-            throw new BusinessException("La solicitud no está en un estado válido para confirmar pago. Estado actual: " + request.getStatus());
-        }
-
-        // 4. No permitir si ya fue pagada
-        if ("PAGADO".equals(request.getEstadoPago())) {
-            throw new BusinessException("El pago operativo ya fue confirmado para esta solicitud.");
-        }
-
-        // 5. Validar litros > 0
-        if (litrosConfirmados == null || litrosConfirmados.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException("Los litros confirmados deben ser mayor a 0.");
-        }
-
-        // 6. Validar precio >= 0
-        if (precioPorLitro == null || precioPorLitro.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException("El precio por litro debe ser mayor o igual a 0.");
-        }
-
-        // 7. Calcular monto total en backend
-        BigDecimal montoTotal = litrosConfirmados.multiply(precioPorLitro);
-
-        // 8. Guardar datos de pago operativo
-        request.setLitrosConfirmados(litrosConfirmados);
-        request.setPrecioPorLitro(precioPorLitro);
-        request.setMontoTotal(montoTotal);
-        request.setEstadoPago("PAGADO");
-        request.setFechaConfirmacionPago(LocalDateTime.now());
-        if (observacionPago != null && !observacionPago.isBlank()) {
-            request.setObservacionPago(observacionPago);
-        }
-
-        // 9. Marcar recojo como COMPLETADO → libera al recolector
-        request.setStatus(PickupRequestStatus.COMPLETADO);
-        if (request.getCollectedAt() == null) {
-            request.setCollectedAt(LocalDateTime.now());
-        }
-
-        request = pickupRequestRepository.save(request);
-
-        auditLogService.log(user, user.getEmail(), "PAGO_OPERATIVO_CONFIRMADO",
-                "Solicitud #" + solicitudId + " – Pago operativo: "
-                        + litrosConfirmados + " L × S/" + precioPorLitro
-                        + " = S/" + montoTotal, ipAddress);
-
-        return request;
-    }
-
-    @Transactional(readOnly = true)
-    public byte[] generarConstanciaPdf(Long solicitudId, Long companyId) {
-        PickupRequest request = getById(solicitudId);
-
-        // El usuario autenticado debe ser la empresa dueña de la solicitud
-        if (!request.getCompany().getId().equals(companyId)) {
-            throw new BusinessException("La solicitud no pertenece a su empresa.");
-        }
-
-        // Solo permitir si el pago operativo está PAGADO y el recojo completado
-        if (!"PAGADO".equals(request.getEstadoPago()) || request.getStatus() != PickupRequestStatus.COMPLETADO) {
-            throw new BusinessException("La constancia no está disponible porque el recojo no se encuentra completado y pagado.");
-        }
-
-        // Obtener datos del recolector
-        User collector = null;
-        Company recolectora = null;
-        if (request.getCollectorUserId() != null) {
-            collector = userRepository.findById(request.getCollectorUserId()).orElse(null);
-            if (collector != null) {
-                recolectora = collector.getCompany();
-            }
-        }
-
-        TransportUnit transportUnit = request.getTransportUnit();
-
-        // Generar un código único de constancia (CONST-000XXX)
-        String codigoConstancia = String.format("CONST-%06d", request.getId());
-
-        return constanciaPdfService.generarConstancia(request, request.getCompany(), collector, recolectora, transportUnit, codigoConstancia);
-    }
-
     public static CompanyType resolveCompanyType(Role role, CompanyType requestedType) {
         if (requestedType != null) {
             return requestedType;
@@ -281,5 +182,176 @@ public class PickupRequestService {
             case RECOLECTOR -> CompanyType.RECOLECTORA;
             default -> throw new IllegalArgumentException("Invalid role for company mapping");
         };
+    }
+
+    @Transactional(readOnly = true)
+    public List<PickupRequest> getAvailableRequests(Company collectorCompany) {
+        subscriptionValidator.validateActiveSubscription(collectorCompany);
+        if (collectorCompany.getCompanyType() != CompanyType.RECOLECTORA) {
+            throw new BusinessException("Solo empresas RECOLECTORAS pueden ver solicitudes disponibles.");
+        }
+        return pickupRequestRepository.findAvailableRequests(collectorCompany.getId(), PickupRequestStatus.PENDIENTE);
+    }
+
+    @Transactional
+    public PickupRequest acceptRequest(Long id, User collector, Company collectorCompany, String ipAddress) {
+        subscriptionValidator.validateActiveSubscription(collectorCompany);
+        if (collectorCompany.getCompanyType() != CompanyType.RECOLECTORA) {
+            throw new BusinessException("Solo empresas RECOLECTORAS pueden aceptar solicitudes.");
+        }
+
+        boolean tieneRecojoActivo = pickupRequestRepository.existsActiveRequestByCollectorCompanyId(
+                collectorCompany.getId(),
+                List.of(PickupRequestStatus.PROGRAMADO, PickupRequestStatus.EN_RUTA, PickupRequestStatus.RECOGIDO)
+        );
+        if (tieneRecojoActivo) {
+            throw new BusinessException("Ya tienes un recojo en curso. Finaliza el actual antes de aceptar otro.");
+        }
+
+        PickupRequest request = getById(id);
+        if (request.getStatus() != PickupRequestStatus.PENDIENTE) {
+            throw new BusinessException("La solicitud ya no está disponible.");
+        }
+        if (request.getCollectorUserId() != null) {
+            throw new BusinessException("Esta solicitud ya fue tomada por otro recolector.");
+        }
+
+        request.setCollectorUserId(collector.getId());
+        request.setStatus(PickupRequestStatus.PROGRAMADO);
+        if (request.getScheduledAt() == null) {
+            request.setScheduledAt(LocalDateTime.now());
+        }
+        request = pickupRequestRepository.save(request);
+
+        auditLogService.log(collector, collector.getEmail(), "SOLICITUD_ACEPTADA",
+                "Solicitud #" + id + " aceptada por recolector.", ipAddress);
+        return request;
+    }
+
+    @Transactional
+    public void rejectRequest(Long id, Company collectorCompany) {
+        PickupRequest request = getById(id);
+        
+        boolean alreadyRejected = rejectedRequestRepository.existsByPickupRequestIdAndCollectorCompanyId(id, collectorCompany.getId());
+        if (!alreadyRejected) {
+            CollectorRejectedRequest rejection = CollectorRejectedRequest.builder()
+                .pickupRequest(request)
+                .collectorCompany(collectorCompany)
+                .build();
+            rejectedRequestRepository.save(rejection);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public PickupRequest getActiveRequest(Long collectorUserId) {
+        return pickupRequestRepository.findFirstActiveRequest(collectorUserId, 
+            List.of(PickupRequestStatus.PROGRAMADO, PickupRequestStatus.EN_RUTA, PickupRequestStatus.RECOGIDO));
+    }
+
+    @Transactional(readOnly = true)
+    public com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse getTrackingForGenerator(Long companyId) {
+        PickupRequest active = pickupRequestRepository.findFirstActiveRequestByCompanyId(companyId, 
+            List.of(PickupRequestStatus.PROGRAMADO, PickupRequestStatus.EN_RUTA, PickupRequestStatus.RECOGIDO));
+        if (active == null) {
+            return null;
+        }
+        return buildTrackingResponse(active);
+    }
+
+    public com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse buildTrackingResponse(PickupRequest active) {
+        if (active == null) {
+            return null;
+        }
+        com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse.PickupTrackingResponseBuilder builder = 
+            com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse.builder()
+                .solicitudId(active.getId())
+                .estado(active.getStatus().name())
+                .empresaGeneradora(active.getCompany().getBusinessName())
+                .direccion(active.getDireccion())
+                .volumenAproximado(active.getApproximateVolumeLiters())
+                .fechaSolicitud(active.getRequestedAt())
+                .fechaProgramada(active.getScheduledAt())
+                .observaciones(active.getObservaciones())
+                .litrosConfirmados(active.getLitrosConfirmados())
+                .precioPorLitro(active.getPrecioPorLitro())
+                .montoTotal(active.getMontoTotal())
+                .estadoPago(active.getEstadoPago())
+                .fechaConfirmacionPago(active.getFechaConfirmacionPago())
+                .observacionPago(active.getObservacionPago());
+
+        if (active.getCollectorUserId() != null) {
+            userRepository.findById(active.getCollectorUserId()).ifPresent(user -> {
+                Company recolectorCompany = user.getCompany();
+                builder.recolector(com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse.RecolectorInfo.builder()
+                        .empresaRecolectoraId(recolectorCompany.getId())
+                        .razonSocial(recolectorCompany.getBusinessName())
+                        .ruc(recolectorCompany.getRuc())
+                        .correo(user.getEmail())
+                        .telefono(user.getPhone())
+                        .build());
+            });
+        }
+
+        if (active.getTransportUnit() != null) {
+            TransportUnit unit = active.getTransportUnit();
+            builder.unidad(com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse.UnidadInfo.builder()
+                    .placa(unit.getPlate())
+                    .marca(unit.getBrand())
+                    .modelo(unit.getModel())
+                    .tipoUnidad(unit.getUnitType())
+                    .capacidadLitros(unit.getCapacityLiters())
+                    .build());
+        }
+
+        return builder.build();
+    }
+
+    @Transactional
+    public PickupRequest confirmarPago(Long id, Company company, User generatorUser,
+                                      BigDecimal litrosConfirmados, BigDecimal precioPorLitro,
+                                      String observacionPago, String ipAddress) {
+        PickupRequest request = getById(id);
+        
+        if (!request.getCompany().getId().equals(company.getId())) {
+            throw new BusinessException("La solicitud no pertenece a su empresa.");
+        }
+        if (request.getCollectorUserId() == null) {
+            throw new BusinessException("La solicitud no tiene un recolector asignado.");
+        }
+        if (request.getStatus() == PickupRequestStatus.COMPLETADO || "PAGADO".equalsIgnoreCase(request.getEstadoPago())) {
+            throw new BusinessException("La solicitud ya ha sido completada y pagada.");
+        }
+        if (request.getStatus() == PickupRequestStatus.CANCELADO) {
+            throw new BusinessException("La solicitud está cancelada.");
+        }
+        if (request.getStatus() != PickupRequestStatus.PROGRAMADO 
+                && request.getStatus() != PickupRequestStatus.EN_RUTA 
+                && request.getStatus() != PickupRequestStatus.RECOGIDO) {
+            throw new BusinessException("La solicitud no está en un estado activo para confirmar pago.");
+        }
+        
+        if (litrosConfirmados == null || litrosConfirmados.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Los litros confirmados deben ser mayores a 0.");
+        }
+        if (precioPorLitro == null || precioPorLitro.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException("El precio por litro debe ser mayor o igual a 0.");
+        }
+        
+        BigDecimal montoTotal = litrosConfirmados.multiply(precioPorLitro);
+        
+        request.setLitrosConfirmados(litrosConfirmados);
+        request.setPrecioPorLitro(precioPorLitro);
+        request.setMontoTotal(montoTotal);
+        request.setEstadoPago("PAGADO");
+        request.setFechaConfirmacionPago(LocalDateTime.now(java.time.ZoneId.of("America/Lima")));
+        request.setObservacionPago(observacionPago);
+        request.setStatus(PickupRequestStatus.COMPLETADO);
+        
+        request = pickupRequestRepository.save(request);
+        
+        auditLogService.log(generatorUser, generatorUser.getEmail(), "PAGO_OPERATIVO_CONFIRMADO",
+                "Solicitud #" + id + " completada y pagada. Litros: " + litrosConfirmados + ", Total: S/ " + montoTotal, ipAddress);
+                
+        return request;
     }
 }

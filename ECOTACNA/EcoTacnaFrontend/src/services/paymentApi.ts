@@ -17,11 +17,6 @@ export interface MockPaymentRequest {
   simulateApproval: boolean;
 }
 
-export interface CulqiPaymentConfirmRequest {
-  paymentId: number;
-  tokenId: string;
-}
-
 export interface PaymentResponse {
   id: number;
   amount: number;
@@ -29,6 +24,44 @@ export interface PaymentResponse {
   status: string;
   description?: string;
   confirmedAt?: string;
+}
+
+export interface SimulatedTokenRequest {
+  cardNumber: string;
+  cvv: string;
+  expiry: string;
+  email: string;
+  cardholderName: string;
+}
+
+export interface SimulatedTokenResponse {
+  id: string;
+  object: string;
+  cardLast4: string;
+  brand: string;
+  email: string;
+  created: string;
+}
+
+export interface SimulatedPaymentConfirmRequest {
+  paymentMethod: string;
+  simulatedToken: string;
+  email: string;
+}
+
+export interface SimulatedPaymentResponse {
+  success: boolean;
+  companyId: number;
+  companyName: string;
+  companyType: string;
+  planName: string;
+  subscriptionStatus: string;
+  todayAmount: number;
+  monthlyAmount: number;
+  trialDays: number;
+  providerTokenId: string;
+  providerChargeId: string;
+  message: string;
 }
 
 export const paymentApi = {
@@ -50,12 +83,24 @@ export const paymentApi = {
     return response.data;
   },
 
-  confirmCulqiPayment: async (data: CulqiPaymentConfirmRequest): Promise<PaymentResponse> => {
-    const response = await apiClient<PaymentResponse>('/payments/culqi/confirm', {
+  createSimulatedToken: async (data: SimulatedTokenRequest): Promise<SimulatedTokenResponse> => {
+    const response = await apiClient<SimulatedTokenResponse>('/public/payments/simulated/tokens', {
       method: 'POST',
       body: JSON.stringify(data)
     });
-    if (!response.data) throw new Error(response.message || 'Error al confirmar pago Culqi');
+    if (!response.data) throw new Error(response.message || 'Error al crear token simulado');
+    return response.data;
+  },
+
+  confirmSimulatedPayment: async (
+    companyId: number | string,
+    data: SimulatedPaymentConfirmRequest
+  ): Promise<SimulatedPaymentResponse> => {
+    const response = await apiClient<SimulatedPaymentResponse>(`/public/payments/simulated/company/${companyId}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    if (!response.data) throw new Error(response.message || 'Error al confirmar pago simulado');
     return response.data;
   }
 };

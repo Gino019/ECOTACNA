@@ -7,6 +7,8 @@ import { getStoredAuth } from "@/services/authStorage";
 import { recolectorNav } from "./recolectorNav";
 import { recolectorApi } from "../../services/recolectorApi";
 import { ApiError } from "../../services/apiClient";
+import { toast } from "sonner";
+import { saveAuth } from "@/services/authStorage";
 
 export interface TransporteDTO {
   id: number;
@@ -38,6 +40,8 @@ export default function RecolectorTransportes() {
   };
 
   const [transportes, setTransportes] = useState<TransporteDTO[]>([]);
+
+
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
   
@@ -49,6 +53,7 @@ export default function RecolectorTransportes() {
 
   const fetchUnidades = () => {
     setLoading(true);
+    setError(null);
     recolectorApi.getUnidades()
       .then((res) => setTransportes(res.data ?? []))
       .catch((e: any) => setError(e instanceof ApiError ? e.message : "Error al cargar unidades de transporte"))
@@ -56,6 +61,16 @@ export default function RecolectorTransportes() {
   };
 
   useEffect(() => {
+    // Sincronizar estado real del backend
+    recolectorApi.getDashboard().then(res => {
+      if (res.success && res.data && auth) {
+        const d = res.data as Record<string, any>;
+        if (d.estado && auth.subscriptionStatus !== d.estado) {
+          saveAuth({ ...auth, subscriptionStatus: d.estado });
+        }
+      }
+    }).catch(() => {});
+
     fetchUnidades();
   }, []);
 
@@ -65,15 +80,19 @@ export default function RecolectorTransportes() {
     try {
       await recolectorApi.crearUnidad({
         placa: formData.placa,
-        tipo: formData.tipoUnidad,
+        marca: formData.marca,
+        modelo: formData.modelo,
+        tipoUnidad: formData.tipoUnidad,
         capacidadLitros: Number(formData.capacidadLitros),
-        activo: formData.estado === "ACTIVO"
+        estado: formData.estado,
+        observaciones: formData.observaciones
       });
       setShowForm(false);
       setFormData({ placa: "", marca: "", modelo: "", capacidadLitros: "", tipoUnidad: "Cisterna", estado: "ACTIVO", observaciones: "" });
+      toast.success("Unidad vehicular registrada correctamente.");
       fetchUnidades();
     } catch (e: any) {
-      alert(e instanceof ApiError ? e.message : "Error al crear la unidad");
+      toast.error(e instanceof ApiError ? e.message : "Error al crear la unidad");
     } finally {
       setSubmitting(false);
     }

@@ -2,5 +2,7 @@ package com.GAKOM_ECOTACNA.ECOTACNA.model;
 
 public enum PaymentProvider {
     MOCK,
-    CULQI
+    CULQI,
+    SIMULATED,
+    MERCADOPAGO
 }

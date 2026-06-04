@@ -10,6 +10,6 @@ export const adminNav = [
 ];
 
 export const adminUser = {
-  name: "Lic. Andrea Vargas",
-  sub: "andrea.vargas@virtual.upt.pe · Google",
+  name: "Administrador EcoTacna",
+  sub: "admin@ecotacna.com",
 };

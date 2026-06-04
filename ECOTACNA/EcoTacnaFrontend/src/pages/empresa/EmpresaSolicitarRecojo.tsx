@@ -34,7 +34,9 @@ export default function EmpresaSolicitarRecojo() {
             setDireccion(resPerfil.data.direccion);
           }
         }
-      } catch {}
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
     };
 
     loadPerfil();

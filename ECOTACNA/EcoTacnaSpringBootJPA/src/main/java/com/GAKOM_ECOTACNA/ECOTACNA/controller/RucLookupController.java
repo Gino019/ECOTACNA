@@ -2,8 +2,11 @@ package com.GAKOM_ECOTACNA.ECOTACNA.controller;
 
 import com.GAKOM_ECOTACNA.ECOTACNA.dto.ApiResponse;
 import com.GAKOM_ECOTACNA.ECOTACNA.dto.RucLookupResponse;
-import com.GAKOM_ECOTACNA.ECOTACNA.service.RucLookupService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.GAKOM_ECOTACNA.ECOTACNA.exception.BusinessException;
+import com.GAKOM_ECOTACNA.ECOTACNA.exception.ExternalProviderException;
+import com.GAKOM_ECOTACNA.ECOTACNA.exception.ResourceNotFoundException;
+import com.GAKOM_ECOTACNA.ECOTACNA.service.ApiPeruDevRucService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,30 +14,29 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/public")
+@RequestMapping("/api/ruc")
 public class RucLookupController {
 
-    private final RucLookupService rucLookupService;
+    private final ApiPeruDevRucService apiPeruDevRucService;
 
-    @Autowired
-    public RucLookupController(RucLookupService rucLookupService) {
-        this.rucLookupService = rucLookupService;
+    public RucLookupController(ApiPeruDevRucService apiPeruDevRucService) {
+        this.apiPeruDevRucService = apiPeruDevRucService;
     }
 
-    @GetMapping("/ruc/{ruc}")
-    public ResponseEntity<ApiResponse<RucLookupResponse>> lookupRuc(@PathVariable String ruc) {
-        RucLookupResponse response = rucLookupService.lookupRuc(ruc);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Datos encontrados", response));
-    }
-
-    @Autowired
-    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
-
-    @GetMapping("/ruc/clear")
-    public String clearDb() {
-        jdbcTemplate.execute("DELETE FROM audit_logs;");
-        jdbcTemplate.execute("DELETE FROM users;");
-        jdbcTemplate.execute("DELETE FROM companies;");
-        return "Base de datos limpiada correctamente.";
+    @GetMapping("/{ruc}")
+    public ResponseEntity<ApiResponse<RucLookupResponse>> consultarRuc(@PathVariable String ruc) {
+        try {
+            RucLookupResponse response = apiPeruDevRucService.consultarRuc(ruc);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Datos encontrados", response));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, ex.getMessage(), null));
+        } catch (ExternalProviderException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(new ApiResponse<>(false, ex.getMessage(), null));
+        } catch (BusinessException ex) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse<>(false, ex.getMessage(), null));
+        }
     }
 }
