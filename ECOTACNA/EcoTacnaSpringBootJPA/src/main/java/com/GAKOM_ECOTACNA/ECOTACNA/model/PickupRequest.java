@@ -65,6 +65,9 @@ public class PickupRequest {
     @Column(columnDefinition = "TEXT")
     private String observaciones;
 
+    @Column(name = "precio_ofertado_por_litro", precision = 12, scale = 2)
+    private BigDecimal precioOfertadoPorLitro;
+
     @Column(name = "litros_confirmados", precision = 12, scale = 2)
     private BigDecimal litrosConfirmados;
 

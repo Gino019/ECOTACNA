@@ -2,7 +2,12 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { MapMock } from "@/components/MapMock";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPinned, Truck, User, Phone, Mail, Clock, MapPin, Droplets, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { MapPinned, Truck, User, Phone, Mail, Clock, MapPin, Droplets, Info, CheckCircle2 } from "lucide-react";
 import { empresaNav } from "./empresaNav";
 import { getStoredAuth } from "@/services/authStorage";
 import { useState, useEffect } from "react";
@@ -14,6 +19,47 @@ export default function EmpresaSeguimiento() {
   const [user, setUser] = useState({ name: auth?.companyName || "Empresa", sub: auth?.email || "No autenticado" });
   const [tracking, setTracking] = useState<PickupTrackingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Modal de confirmación
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [litrosConfirmados, setLitrosConfirmados] = useState<number | "">("");
+  const [observacionPago, setObservacionPago] = useState("");
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [montoTotalCalculado, setMontoTotalCalculado] = useState<number>(0);
+
+  useEffect(() => {
+    if (tracking?.precioOfertadoPorLitro && typeof litrosConfirmados === "number" && litrosConfirmados > 0) {
+      setMontoTotalCalculado(litrosConfirmados * tracking.precioOfertadoPorLitro);
+    } else {
+      setMontoTotalCalculado(0);
+    }
+  }, [litrosConfirmados, tracking?.precioOfertadoPorLitro]);
+
+  const handleConfirmarPago = async () => {
+    if (!tracking || tracking.precioOfertadoPorLitro == null) return;
+    if (typeof litrosConfirmados !== "number" || litrosConfirmados <= 0) return;
+    
+    setIsConfirming(true);
+    setErrorMessage("");
+    try {
+      const res = await empresaApi.confirmarPago(tracking.solicitudId, {
+        litrosConfirmados,
+        observacionPago: observacionPago.trim() || undefined,
+      });
+      if (res.success && res.data) {
+        setTracking(res.data);
+        setIsConfirmModalOpen(false);
+      } else {
+        setErrorMessage(res.message || "No se pudo confirmar el pago.");
+      }
+    } catch (error: unknown) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : "Ocurrió un error inesperado al confirmar.");
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   useEffect(() => {
     empresaApi.getPerfil().then((res) => {
@@ -68,14 +114,27 @@ export default function EmpresaSeguimiento() {
         <Card className="p-8 animate-pulse bg-muted/50 h-40" />
       ) : tracking ? (
         <Card className="overflow-hidden border-primary/20 shadow-md">
-          <div className="bg-primary/5 p-4 border-b border-border flex justify-between items-center">
+          <div className="bg-primary/5 p-4 border-b border-border flex justify-between items-center flex-wrap gap-4">
             <div>
-              <h3 className="font-bold text-lg text-primary">Tu recojo fue aceptado</h3>
-              <p className="text-sm text-muted-foreground">El recolector está en camino o preparándose para la recolección.</p>
+              <h3 className="font-bold text-lg text-primary">
+                {tracking.estado === "COMPLETADO" ? "Recojo Completado" : "Tu recojo fue aceptado"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {tracking.estado === "COMPLETADO" 
+                  ? "El proceso ha concluido exitosamente." 
+                  : "El recolector está en camino o preparándose para la recolección."}
+              </p>
             </div>
-            <Badge className="bg-primary hover:bg-primary">
-              {tracking.estado.replace("_", " ")}
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Badge className="bg-primary hover:bg-primary">
+                {tracking.estado.replace("_", " ")}
+              </Badge>
+              {tracking.estado !== "COMPLETADO" && (
+                <Button onClick={() => { setIsConfirmModalOpen(true); setErrorMessage(""); }} size="sm">
+                  Confirmar recojo y pago
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
@@ -145,6 +204,23 @@ export default function EmpresaSeguimiento() {
                   </div>
                 </div>
 
+                <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20 text-sm">
+                  <p className="font-semibold text-primary mb-1">Tu oferta</p>
+                  {tracking.precioOfertadoPorLitro != null ? (
+                    <>
+                      <p className="text-foreground/90">S/ {Number(tracking.precioOfertadoPorLitro).toFixed(2)} por litro</p>
+                      <p className="text-muted-foreground font-medium">
+                        Estimado: S/ {tracking.montoEstimado != null ? Number(tracking.montoEstimado).toFixed(2) : "0.00"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground italic">Precio no registrado</p>
+                      <p className="text-muted-foreground italic">Monto no disponible</p>
+                    </>
+                  )}
+                </div>
+
                 {tracking.observaciones && (
                   <div className="mt-4 p-3 bg-background rounded border border-border">
                     <p className="text-xs font-semibold text-muted-foreground mb-1">Observaciones:</p>
@@ -163,6 +239,88 @@ export default function EmpresaSeguimiento() {
             Cuando un recolector acepte tu solicitud, sus datos aparecerán aquí.
           </p>
         </Card>
+      )}
+
+      {/* Confirmar Recojo Modal */}
+      {tracking && (
+        <Dialog open={isConfirmModalOpen} onOpenChange={setIsConfirmModalOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-primary" /> Confirmar recojo y pago
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              {tracking.precioOfertadoPorLitro == null ? (
+                <div className="bg-destructive/10 p-4 rounded-md border border-destructive/20 text-destructive text-sm font-medium">
+                  Esta solicitud no tiene precio ofertado registrado. No se puede confirmar el pago desde este flujo.
+                </div>
+              ) : (
+                <>
+                  {errorMessage && (
+                    <div className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-destructive text-sm font-medium">
+                      {errorMessage}
+                    </div>
+                  )}
+                  <div className="bg-muted p-4 rounded-md border border-border">
+                    <p className="text-sm text-muted-foreground mb-1">Precio ofertado</p>
+                    <p className="text-lg font-semibold text-foreground">
+                      S/ {Number(tracking.precioOfertadoPorLitro).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">/ L</span>
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="litros">Litros confirmados recolectados</Label>
+                    <Input
+                      id="litros"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      placeholder="Ej. 40"
+                      value={litrosConfirmados}
+                      onChange={(e) => setLitrosConfirmados(e.target.value === "" ? "" : Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="observacion">Observación (Opcional)</Label>
+                    <Textarea
+                      id="observacion"
+                      placeholder="Algún detalle sobre la recolección..."
+                      value={observacionPago}
+                      onChange={(e) => setObservacionPago(e.target.value)}
+                    />
+                  </div>
+                  <div className="bg-primary/5 p-4 rounded-md border border-primary/20">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium text-foreground">Monto final a pagar:</p>
+                      <p className="text-xl font-bold text-primary">
+                        S/ {montoTotalCalculado.toFixed(2)}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-right mt-1">
+                      (Litros confirmados x Precio ofertado)
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsConfirmModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleConfirmarPago} 
+                disabled={
+                  tracking.precioOfertadoPorLitro == null || 
+                  typeof litrosConfirmados !== "number" || 
+                  litrosConfirmados <= 0 || 
+                  isConfirming
+                }
+              >
+                {isConfirming ? "Procesando..." : "Confirmar y pagar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </DashboardShell>
   );

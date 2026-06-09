@@ -18,14 +18,28 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.GAKOM_ECOTACNA.ECOTACNA.service.ConstanciaPdfService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
+import com.GAKOM_ECOTACNA.ECOTACNA.service.HistorialExcelService;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+
 @RestController
 public class PickupRequestController {
 
     private final PickupRequestService pickupRequestService;
+    private final ConstanciaPdfService constanciaPdfService;
+    private final HistorialExcelService historialExcelService;
 
     @Autowired
-    public PickupRequestController(PickupRequestService pickupRequestService) {
+    public PickupRequestController(PickupRequestService pickupRequestService, 
+                                   ConstanciaPdfService constanciaPdfService,
+                                   HistorialExcelService historialExcelService) {
         this.pickupRequestService = pickupRequestService;
+        this.constanciaPdfService = constanciaPdfService;
+        this.historialExcelService = historialExcelService;
     }
 
     @GetMapping("/api/empresa/solicitudes")
@@ -49,6 +63,7 @@ public class PickupRequestController {
                 request.getFechaProgramada(),
                 request.getDireccion(),
                 request.getObservaciones(),
+                request.getPrecioOfertadoPorLitro(),
                 principal.getUser(),
                 servletRequest.getRemoteAddr());
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -143,11 +158,79 @@ public class PickupRequestController {
                 principal.getCompany(),
                 principal.getUser(),
                 requestDto.getLitrosConfirmados(),
-                requestDto.getPrecioPorLitro(),
                 requestDto.getObservacionPago(),
                 servletRequest.getRemoteAddr()
         );
         com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse responseDto = pickupRequestService.buildTrackingResponse(updated);
         return ResponseEntity.ok(new ApiResponse<>(true, "Pago operativo confirmado y recojo completado exitosamente", responseDto));
+    }
+
+    @GetMapping("/api/empresa/solicitudes/{id}/constancia")
+    public ResponseEntity<byte[]> downloadConstanciaEmpresa(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            PickupRequest request = pickupRequestService.getConstanciaForCompany(id, principal.getCompany());
+            byte[] pdf = constanciaPdfService.generateConstancia(request);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("filename", "constancia-ecotacna-solicitud-" + id + ".pdf");
+            return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new com.GAKOM_ECOTACNA.ECOTACNA.exception.BusinessException("Error al generar la constancia: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/api/recolector/solicitudes/{id}/constancia")
+    public ResponseEntity<byte[]> downloadConstanciaRecolector(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            PickupRequest request = pickupRequestService.getConstanciaForCollector(id, principal.getUser().getId());
+            byte[] pdf = constanciaPdfService.generateConstancia(request);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("filename", "constancia-recolector-ecotacna-solicitud-" + id + ".pdf");
+            return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new com.GAKOM_ECOTACNA.ECOTACNA.exception.BusinessException("Error al generar la constancia: " + e.getMessage());
+        }
+    }
+    @GetMapping("/api/empresa/solicitudes/exportar")
+    public ResponseEntity<byte[]> exportarHistorialEmpresa(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            List<PickupRequest> requests = pickupRequestService.getRequestsForExportCompany(principal.getCompany().getId(), desde, hasta);
+            byte[] excel = historialExcelService.generateCompanyExcel(requests, principal.getCompany(), desde.toString(), hasta.toString());
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDispositionFormData("filename", "historial-empresa-ecotacna-" + desde + "-" + hasta + ".xlsx");
+            return new ResponseEntity<>(excel, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new com.GAKOM_ECOTACNA.ECOTACNA.exception.BusinessException("Error al generar Excel: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/api/recolector/solicitudes/exportar")
+    public ResponseEntity<byte[]> exportarHistorialRecolector(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            List<PickupRequest> requests = pickupRequestService.getRequestsForExportCollector(principal.getUser().getId(), desde, hasta);
+            byte[] excel = historialExcelService.generateCollectorExcel(requests, principal.getUser(), desde.toString(), hasta.toString());
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDispositionFormData("filename", "historial-recolector-ecotacna-" + desde + "-" + hasta + ".xlsx");
+            return new ResponseEntity<>(excel, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new com.GAKOM_ECOTACNA.ECOTACNA.exception.BusinessException("Error al generar Excel: " + e.getMessage());
+        }
     }
 }

@@ -4,6 +4,7 @@ export const recolectorNav = [
   { to: "/recolector/resumen", label: "Resumen", icon: LayoutDashboard },
   { to: "/recolector/mapa-operativo", label: "Mapa operativo", icon: MapPinned },
   { to: "/recolector/recojos-dia", label: "Recojos del día", icon: Truck },
+  { to: "/recolector/solicitudes", label: "Historial de recojos", icon: FileCheck2 },
   { to: "/recolector/transportes", label: "Mis unidades", icon: Truck },
   { to: "/recolector/mi-empresa", label: "Mi empresa", icon: Settings },
 ];

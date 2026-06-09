@@ -117,6 +117,23 @@ export default function RecolectorMapaOperativo() {
                     <p className="text-sm">Unidad: <span className="font-mono bg-muted px-1 py-0.5 rounded text-xs">{activeRequest.transportePlaca}</span></p>
                   </div>
                 )}
+                
+                <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20 text-sm">
+                  <p className="font-semibold text-primary mb-1">Oferta del restaurante</p>
+                  {activeRequest.precioOfertadoPorLitro != null ? (
+                    <>
+                      <p className="text-foreground/90">S/ {Number(activeRequest.precioOfertadoPorLitro).toFixed(2)} por litro</p>
+                      <p className="text-muted-foreground font-medium">
+                        Estimado: S/ {activeRequest.montoEstimado != null ? Number(activeRequest.montoEstimado).toFixed(2) : "0.00"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground italic">Precio no registrado</p>
+                      <p className="text-muted-foreground italic">Monto no disponible</p>
+                    </>
+                  )}
+                </div>
               </div>
               
               {activeRequest.observaciones && (

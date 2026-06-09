@@ -1,6 +1,7 @@
 package com.GAKOM_ECOTACNA.ECOTACNA.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -18,4 +19,9 @@ public class PickupRequestRequest {
     private String direccion;
 
     private String observaciones;
+
+    @NotNull(message = "El precio ofertado por litro es obligatorio")
+    @DecimalMin(value = "2.00", message = "El precio mínimo es S/ 2.00")
+    @DecimalMax(value = "3.00", message = "El precio máximo es S/ 3.00")
+    private BigDecimal precioOfertadoPorLitro;
 }

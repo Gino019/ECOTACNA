@@ -20,5 +20,12 @@ export const publicApi = {
       throw new Error(res.message || "Error al cargar el captcha");
     }
     return res.data;
+  },
+  verifyCaptchaChallenge: async (captchaToken: string, userX: number): Promise<boolean> => {
+    const res = await apiClient<void>("/public/captcha/verify", {
+      method: "POST",
+      body: JSON.stringify({ captchaToken, userX })
+    });
+    return res.success;
   }
 };

@@ -23,6 +23,9 @@ public class PickupRequestResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private BigDecimal precioOfertadoPorLitro;
+    private BigDecimal montoEstimado;
+
     private BigDecimal litrosConfirmados;
     private BigDecimal precioPorLitro;
     private BigDecimal montoTotal;

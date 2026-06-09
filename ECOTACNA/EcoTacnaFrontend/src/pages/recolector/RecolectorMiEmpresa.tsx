@@ -14,11 +14,18 @@ const Field = ({ label, value, className = "" }: { label: string; value: string;
     <Input value={value} readOnly />
   </div>
 );
+interface PerfilRecolector {
+  razonSocial: string;
+  ruc: string;
+  correo?: string;
+  tipoEmpresa?: string;
+  direccion?: string;
+}
 
 export default function RecolectorMiEmpresa() {
   const auth = getStoredAuth();
   const [user, setUser] = useState({ name: auth?.companyName || "Recolector", sub: auth?.email || "No autenticado" });
-  const [perfil, setPerfil] = useState<any>(null);
+  const [perfil, setPerfil] = useState<PerfilRecolector | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,8 +38,8 @@ export default function RecolectorMiEmpresa() {
           return;
         }
         setMessage(res.message || "No se pudo cargar el perfil");
-      } catch (error: any) {
-        setMessage(error.message || "No se pudo cargar el perfil");
+      } catch (error: unknown) {
+        setMessage(error instanceof Error ? error.message : "No se pudo cargar el perfil");
       }
     };
     loadPerfil();

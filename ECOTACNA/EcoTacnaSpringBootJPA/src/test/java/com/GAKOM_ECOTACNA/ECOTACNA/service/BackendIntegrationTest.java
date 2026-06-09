@@ -153,7 +153,7 @@ public class BackendIntegrationTest {
         companyRepository.save(generadora);
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
-            pickupRequestService.create(generadora, new BigDecimal("100"), LocalDateTime.now().plusDays(1), "dir", "obs", generadorUser, "127.0.0.1")
+            pickupRequestService.create(generadora, new BigDecimal("100"), LocalDateTime.now().plusDays(1), "dir", "obs", new BigDecimal("2.50"), generadorUser, "127.0.0.1")
         );
         assertTrue(ex.getMessage().contains("suscripci"));
     }
@@ -161,7 +161,7 @@ public class BackendIntegrationTest {
     @Test
     public void testFlujoCompletoSolicitud() {
         // 1. Crear
-        PickupRequest request = pickupRequestService.create(generadora, new BigDecimal("500"), LocalDateTime.now().plusDays(1), "dir", "obs", generadorUser, "127.0.0.1");
+        PickupRequest request = pickupRequestService.create(generadora, new BigDecimal("500"), LocalDateTime.now().plusDays(1), "dir", "obs", new BigDecimal("2.50"), generadorUser, "127.0.0.1");
         assertEquals(PickupRequestStatus.PENDIENTE, request.getStatus());
 
         // 2. Asignar
@@ -218,7 +218,7 @@ public class BackendIntegrationTest {
     @Test
     public void testRBACNoGeneradoraNoPuedeCrearSolicitud() {
         BusinessException ex = assertThrows(BusinessException.class, () ->
-            pickupRequestService.create(recolectora, new BigDecimal("100"), LocalDateTime.now().plusDays(1), "dir", "obs", recolectorUser, "127.0.0.1")
+            pickupRequestService.create(recolectora, new BigDecimal("100"), LocalDateTime.now().plusDays(1), "dir", "obs", new BigDecimal("2.50"), recolectorUser, "127.0.0.1")
         );
         assertTrue(ex.getMessage().contains("Solo empresas GENERADORAS pueden crear solicitudes de recojo"));
     }

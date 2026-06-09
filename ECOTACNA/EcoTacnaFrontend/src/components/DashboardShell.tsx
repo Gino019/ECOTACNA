@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { ReactNode, useMemo } from "react";
-import { Bell, ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Settings, User, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -8,7 +8,7 @@ import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { clearStoredAuth, getStoredAuth } from "@/services/authStorage";
 
-interface NavItem { to: string; label: string; icon: any; }
+interface NavItem { to: string; label: string; icon: LucideIcon; }
 interface Props {
   role: "Administrador" | "Empresa" | "Recolector";
   user: { name: string; sub: string; avatar?: string };

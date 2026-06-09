@@ -44,6 +44,7 @@ public class PickupRequestService {
     @Transactional
     public PickupRequest create(Company company, BigDecimal volume, LocalDateTime scheduledAt,
                                 String direccion, String observaciones,
+                                BigDecimal precioOfertadoPorLitro,
                                 User creator, String ipAddress) {
         subscriptionValidator.validateActiveSubscription(company);
 
@@ -53,6 +54,12 @@ public class PickupRequestService {
         if (volume == null || volume.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("El volumen aproximado debe ser mayor a 0.");
         }
+        if (precioOfertadoPorLitro == null) {
+            throw new BusinessException("El precio ofertado por litro es obligatorio.");
+        }
+        if (precioOfertadoPorLitro.compareTo(new BigDecimal("2.00")) < 0 || precioOfertadoPorLitro.compareTo(new BigDecimal("3.00")) > 0) {
+            throw new BusinessException("El precio ofertado debe estar entre S/ 2.00 y S/ 3.00.");
+        }
 
         PickupRequest request = PickupRequest.builder()
                 .company(company)
@@ -60,6 +67,7 @@ public class PickupRequestService {
                 .scheduledAt(scheduledAt)
                 .direccion(direccion)
                 .observaciones(observaciones)
+                .precioOfertadoPorLitro(precioOfertadoPorLitro)
                 .status(PickupRequestStatus.PENDIENTE)
                 .build();
         request = pickupRequestRepository.save(request);
@@ -272,6 +280,8 @@ public class PickupRequestService {
                 .fechaSolicitud(active.getRequestedAt())
                 .fechaProgramada(active.getScheduledAt())
                 .observaciones(active.getObservaciones())
+                .precioOfertadoPorLitro(active.getPrecioOfertadoPorLitro())
+                .montoEstimado(active.getApproximateVolumeLiters() != null && active.getPrecioOfertadoPorLitro() != null ? active.getApproximateVolumeLiters().multiply(active.getPrecioOfertadoPorLitro()) : null)
                 .litrosConfirmados(active.getLitrosConfirmados())
                 .precioPorLitro(active.getPrecioPorLitro())
                 .montoTotal(active.getMontoTotal())
@@ -308,8 +318,7 @@ public class PickupRequestService {
 
     @Transactional
     public PickupRequest confirmarPago(Long id, Company company, User generatorUser,
-                                      BigDecimal litrosConfirmados, BigDecimal precioPorLitro,
-                                      String observacionPago, String ipAddress) {
+                                      BigDecimal litrosConfirmados, String observacionPago, String ipAddress) {
         PickupRequest request = getById(id);
         
         if (!request.getCompany().getId().equals(company.getId())) {
@@ -333,14 +342,16 @@ public class PickupRequestService {
         if (litrosConfirmados == null || litrosConfirmados.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("Los litros confirmados deben ser mayores a 0.");
         }
-        if (precioPorLitro == null || precioPorLitro.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException("El precio por litro debe ser mayor o igual a 0.");
+        
+        BigDecimal precioAplicado = request.getPrecioOfertadoPorLitro();
+        if (precioAplicado == null || precioAplicado.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("No se puede confirmar el pago porque la solicitud no tiene precio ofertado registrado.");
         }
         
-        BigDecimal montoTotal = litrosConfirmados.multiply(precioPorLitro);
+        BigDecimal montoTotal = litrosConfirmados.multiply(precioAplicado);
         
         request.setLitrosConfirmados(litrosConfirmados);
-        request.setPrecioPorLitro(precioPorLitro);
+        request.setPrecioPorLitro(precioAplicado);
         request.setMontoTotal(montoTotal);
         request.setEstadoPago("PAGADO");
         request.setFechaConfirmacionPago(LocalDateTime.now(java.time.ZoneId.of("America/Lima")));
@@ -353,5 +364,57 @@ public class PickupRequestService {
                 "Solicitud #" + id + " completada y pagada. Litros: " + litrosConfirmados + ", Total: S/ " + montoTotal, ipAddress);
                 
         return request;
+    }
+
+    @Transactional(readOnly = true)
+    public PickupRequest getConstanciaForCompany(Long id, Company company) {
+        PickupRequest request = pickupRequestRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Solicitud de recojo no encontrada."));
+
+        if (!request.getCompany().getId().equals(company.getId())) {
+            throw new BusinessException("No tiene permisos para descargar la constancia de esta solicitud.");
+        }
+
+        if (request.getStatus() != PickupRequestStatus.COMPLETADO || !"PAGADO".equals(request.getEstadoPago())) {
+            throw new BusinessException("La constancia no está disponible porque la solicitud no ha sido pagada/completada.");
+        }
+
+        return request;
+    }
+
+    @Transactional(readOnly = true)
+    public PickupRequest getConstanciaForCollector(Long id, Long collectorUserId) {
+        PickupRequest request = pickupRequestRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Solicitud de recojo no encontrada."));
+
+        if (request.getCollectorUserId() == null || !request.getCollectorUserId().equals(collectorUserId)) {
+            throw new BusinessException("No tiene permisos para descargar la constancia de esta solicitud.");
+        }
+
+        if (request.getStatus() != PickupRequestStatus.COMPLETADO || !"PAGADO".equals(request.getEstadoPago())) {
+            throw new BusinessException("La constancia no está disponible porque la solicitud no ha sido pagada/completada.");
+        }
+
+        return request;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PickupRequest> getRequestsForExportCompany(Long companyId, java.time.LocalDate desde, java.time.LocalDate hasta) {
+        if (desde.isAfter(hasta)) {
+            throw new BusinessException("La fecha 'desde' no puede ser mayor a 'hasta'.");
+        }
+        java.time.LocalDateTime startOfDay = desde.atStartOfDay();
+        java.time.LocalDateTime endOfDay = hasta.atTime(23, 59, 59, 999999999);
+        return pickupRequestRepository.findByCompanyIdAndRequestedAtBetweenOrderByRequestedAtDesc(companyId, startOfDay, endOfDay);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PickupRequest> getRequestsForExportCollector(Long collectorUserId, java.time.LocalDate desde, java.time.LocalDate hasta) {
+        if (desde.isAfter(hasta)) {
+            throw new BusinessException("La fecha 'desde' no puede ser mayor a 'hasta'.");
+        }
+        java.time.LocalDateTime startOfDay = desde.atStartOfDay();
+        java.time.LocalDateTime endOfDay = hasta.atTime(23, 59, 59, 999999999);
+        return pickupRequestRepository.findByCollectorUserIdAndRequestedAtBetweenOrderByRequestedAtDesc(collectorUserId, startOfDay, endOfDay);
     }
 }
