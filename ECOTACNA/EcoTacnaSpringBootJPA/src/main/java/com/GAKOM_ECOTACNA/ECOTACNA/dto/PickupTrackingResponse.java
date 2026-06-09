@@ -21,6 +21,8 @@ public class PickupTrackingResponse {
     private UnidadInfo unidad;
 
     private BigDecimal litrosConfirmados;
+    private BigDecimal precioOfertadoPorLitro;
+    private BigDecimal montoEstimado;
     private BigDecimal precioPorLitro;
     private BigDecimal montoTotal;
     private String estadoPago;

@@ -16,11 +16,19 @@ const Field = ({ label, value, className = "" }: { label: string; value: string;
     <Input value={value} readOnly />
   </div>
 );
+interface PerfilEmpresa {
+  razonSocial: string;
+  ruc: string;
+  correo?: string;
+  tipoEmpresa: string;
+  direccion: string;
+  creadoEn?: string;
+}
 
 export default function EmpresaMiEmpresa() {
   const auth = getStoredAuth();
   const [user, setUser] = useState({ name: auth?.companyName || "Empresa", sub: auth?.email || "No autenticado" });
-  const [perfil, setPerfil] = useState<any>(null);
+  const [perfil, setPerfil] = useState<PerfilEmpresa | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,7 +41,7 @@ export default function EmpresaMiEmpresa() {
           return;
         }
         setMessage(res.message || "Perfil no encontrado en backend");
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (error instanceof ApiError) {
           if (error.status === 401) {
             setMessage("Sesión expirada");
@@ -44,7 +52,7 @@ export default function EmpresaMiEmpresa() {
             return;
           }
         }
-        setMessage(error.message || "Error de red");
+        setMessage(error instanceof Error ? error.message : "Error de red");
       }
     };
 

@@ -36,6 +36,8 @@ public class CaptchaService {
     private static class CaptchaChallenge {
         final int targetX;
         final long expiryTime;
+        boolean verified = false;
+        boolean consumed = false;
 
         CaptchaChallenge(int targetX, long expiryTime) {
             this.targetX = targetX;
@@ -101,44 +103,78 @@ public class CaptchaService {
                 .build();
     }
 
+    public boolean verifyChallenge(String token, int userX) {
+        if (!captchaEnabled) {
+            return true;
+        }
+
+        if (token == null || token.trim().isEmpty()) {
+            return false;
+        }
+
+        CaptchaChallenge challenge = activeChallenges.get(token);
+        if (challenge == null) {
+            logger.warn("El desafío del captcha no existe o ya fue consumido.");
+            return false;
+        }
+
+        if (System.currentTimeMillis() > challenge.expiryTime) {
+            logger.warn("El desafío del captcha ha expirado.");
+            activeChallenges.remove(token);
+            return false;
+        }
+
+        if (challenge.consumed || challenge.verified) {
+            logger.warn("El token ya fue consumido o verificado previamente.");
+            return false;
+        }
+
+        // Permitir un margen de error amigable de ±8 píxeles
+        int diff = Math.abs(challenge.targetX - userX);
+        if (diff <= 8) {
+            challenge.verified = true;
+            return true;
+        } else {
+            logger.warn("Verificación del captcha falló. Diff: {} píxeles", diff);
+            return false;
+        }
+    }
+
     public boolean validateToken(String token) {
         if (!captchaEnabled) {
             return true;
         }
 
-        if (token == null || token.trim().isEmpty() || !token.contains(":")) {
-            logger.warn("El token del captcha es nulo, vacío o tiene un formato incorrecto.");
+        if (token == null || token.trim().isEmpty()) {
+            logger.warn("El token del captcha es nulo o vacío.");
             return false;
         }
 
-        try {
-            int sepIndex = token.indexOf(":");
-            String challengeId = token.substring(0, sepIndex);
-            int userX = (int) Math.round(Double.parseDouble(token.substring(sepIndex + 1)));
-
-            CaptchaChallenge challenge = activeChallenges.remove(challengeId); // Consumir para evitar ataques de replay
-            if (challenge == null) {
-                logger.warn("El desafío del captcha no existe o ya fue consumido.");
-                return false;
-            }
-
-            if (System.currentTimeMillis() > challenge.expiryTime) {
-                logger.warn("El desafío del captcha ha expirado.");
-                return false;
-            }
-
-            // Permitir un margen de error amigable de ±8 píxeles
-            int diff = Math.abs(challenge.targetX - userX);
-            if (diff <= 8) {
-                return true;
-            } else {
-                logger.warn("Validación del captcha falló. Diff: {} píxeles (correcto: {}, usuario: {})", diff, challenge.targetX, userX);
-                return false;
-            }
-        } catch (Exception e) {
-            logger.error("Error al validar el token de captcha: ", e);
+        CaptchaChallenge challenge = activeChallenges.get(token);
+        if (challenge == null) {
+            logger.warn("El desafío del captcha no existe o ya fue consumido.");
             return false;
         }
+
+        if (System.currentTimeMillis() > challenge.expiryTime) {
+            logger.warn("El desafío del captcha ha expirado.");
+            activeChallenges.remove(token);
+            return false;
+        }
+
+        if (!challenge.verified) {
+            logger.warn("El token no ha sido verificado por el usuario.");
+            return false;
+        }
+
+        if (challenge.consumed) {
+            logger.warn("El token ya fue consumido.");
+            return false;
+        }
+
+        challenge.consumed = true;
+        activeChallenges.remove(token);
+        return true;
     }
 
     private BufferedImage generateBackground() {

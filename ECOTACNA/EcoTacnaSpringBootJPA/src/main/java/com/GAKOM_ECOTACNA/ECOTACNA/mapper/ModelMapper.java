@@ -39,6 +39,11 @@ public class ModelMapper {
         dto.setCreatedAt(request.getRequestedAt()); // or requestedAt
         dto.setUpdatedAt(request.getUpdatedAt());
         
+        dto.setPrecioOfertadoPorLitro(request.getPrecioOfertadoPorLitro());
+        if (request.getApproximateVolumeLiters() != null && request.getPrecioOfertadoPorLitro() != null) {
+            dto.setMontoEstimado(request.getApproximateVolumeLiters().multiply(request.getPrecioOfertadoPorLitro()));
+        }
+        
         dto.setLitrosConfirmados(request.getLitrosConfirmados());
         dto.setPrecioPorLitro(request.getPrecioPorLitro());
         dto.setMontoTotal(request.getMontoTotal());

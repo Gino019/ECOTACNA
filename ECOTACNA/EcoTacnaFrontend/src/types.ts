@@ -45,6 +45,8 @@ export interface PickupRequest {
   updatedAt?: string;
   transportePlaca?: string;
   recolectorAsignado?: string;
+  precioOfertadoPorLitro?: number;
+  montoEstimado?: number;
 }
 
 export interface TransportUnit {
@@ -139,4 +141,6 @@ export interface PickupTrackingResponse {
     tipoUnidad: string;
     capacidadLitros: number;
   };
+  precioOfertadoPorLitro?: number;
+  montoEstimado?: number;
 }

@@ -25,9 +25,20 @@ const SkeletonRow = () => (
   </TableRow>
 );
 
+interface AdminUsuario {
+  id?: string | number;
+  nombre?: string;
+  correo: string;
+  rol?: string;
+  empresa?: string;
+  acceso?: string;
+  estado?: string;
+  creadoEn?: string;
+}
+
 export default function AdminUsuarios() {
   const navigate = useNavigate();
-  const [data, setData]       = useState<any[]>([]);
+  const [data, setData]       = useState<AdminUsuario[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -68,7 +79,7 @@ export default function AdminUsuarios() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard icon={Users}    label="Usuarios"  value={loading ? "—" : data.length} tone="primary" />
-        <StatCard icon={Shield}   label="Activos"   value={loading ? "—" : data.filter((a:any) => a.estado?.toString().toUpperCase() === "ACTIVO").length} tone="success" />
+        <StatCard icon={Shield}   label="Activos"   value={loading ? "—" : data.filter((a) => a.estado?.toString().toUpperCase() === "ACTIVO").length} tone="success" />
         <StatCard icon={MailCheck} label="Con OTP"  value={loading ? "—" : data.length} tone="info"    />
         <StatCard icon={Shield}   label="Permitidos" value="5 máx."                     tone="accent"  />
       </div>
@@ -102,7 +113,7 @@ export default function AdminUsuarios() {
                     </TableCell>
                   </TableRow>
                 )
-                : data.map((a:any) => (
+                : data.map((a) => (
                   <TableRow key={a.correo ?? a.id}>
                     <TableCell>
                       <div className="font-semibold text-sm">{a.nombre || "Sin nombre registrado"}</div>
@@ -147,7 +158,7 @@ const AgregarCorreoDialog = () => (
       <div className="grid sm:grid-cols-2 gap-4 py-2">
         <div className="space-y-1.5">
           <Label>Nombre completo</Label>
-          <Input placeholder="Ej. Andrea Vargas" />
+          <Input placeholder="Ej. Juan Pérez" />
         </div>
         <div className="space-y-1.5">
           <Label>Cargo / área</Label>

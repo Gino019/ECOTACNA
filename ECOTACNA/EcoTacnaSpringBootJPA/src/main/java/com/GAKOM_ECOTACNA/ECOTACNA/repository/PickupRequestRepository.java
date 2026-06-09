@@ -65,4 +65,20 @@ public interface PickupRequestRepository extends JpaRepository<PickupRequest, Lo
             LIMIT 1
             """)
     PickupRequest findFirstActiveRequestByCompanyId(@Param("companyId") Long companyId, @Param("statuses") List<PickupRequestStatus> statuses);
+
+    @Query("""
+            SELECT pr FROM PickupRequest pr JOIN FETCH pr.company 
+            WHERE pr.company.id = :companyId 
+            AND pr.requestedAt >= :desde AND pr.requestedAt <= :hasta 
+            ORDER BY pr.requestedAt DESC
+            """)
+    List<PickupRequest> findByCompanyIdAndRequestedAtBetweenOrderByRequestedAtDesc(@Param("companyId") Long companyId, @Param("desde") java.time.LocalDateTime desde, @Param("hasta") java.time.LocalDateTime hasta);
+
+    @Query("""
+            SELECT pr FROM PickupRequest pr JOIN FETCH pr.company 
+            WHERE pr.collectorUserId = :collectorUserId 
+            AND pr.requestedAt >= :desde AND pr.requestedAt <= :hasta 
+            ORDER BY pr.requestedAt DESC
+            """)
+    List<PickupRequest> findByCollectorUserIdAndRequestedAtBetweenOrderByRequestedAtDesc(@Param("collectorUserId") Long collectorUserId, @Param("desde") java.time.LocalDateTime desde, @Param("hasta") java.time.LocalDateTime hasta);
 }

@@ -160,7 +160,16 @@ const Profile = () => {
   );
 };
 
-const Field = ({ label, value, type = "text", disabled, placeholder, className = "" }: any) => (
+interface FieldProps {
+  label: string;
+  value: string;
+  type?: string;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+}
+
+const Field = ({ label, value, type = "text", disabled, placeholder, className = "" }: FieldProps) => (
   <div className={`space-y-1.5 ${className}`}>
     <Label className="text-xs">{label}</Label>
     <Input type={type} defaultValue={value} disabled={disabled} placeholder={placeholder} className={`h-11 ${disabled ? "bg-muted/50" : ""}`}/>

@@ -60,10 +60,10 @@ const Login = () => {
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userEmail || !userPassword) return;
-    if (!captchaTokenUser) {
+    /*if (!captchaTokenUser) {
       toast.error("Marca la verificación \"No soy un robot\" para continuar");
       return;
-    }
+    }*/
     setIsLoadingUser(true);
     try {
       const response = await authApi.login(userEmail, userPassword, captchaTokenUser);

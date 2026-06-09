@@ -91,5 +91,56 @@ export const recolectorApi = {
 
   getRecojoActivo: async () => {
     return await apiClient<PickupRequest>("/recolector/recojo-activo", { method: "GET" });
+  },
+
+  descargarConstancia: async (solicitudId: number) => {
+    const authStr = localStorage.getItem("ecotacna_auth");
+    let token = "";
+    if (authStr) {
+      try {
+        const auth = JSON.parse(authStr);
+        if (auth && auth.token) token = auth.token;
+      } catch (e) {
+        console.warn("Error leyendo auth storage local", e);
+      }
+    }
+
+    const { BASE_URL } = await import("./apiClient");
+    const response = await fetch(`${BASE_URL}/recolector/solicitudes/${solicitudId}/constancia`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error("No se pudo descargar la constancia. Verifique el estado de la solicitud.");
+    }
+    
+    return response.blob();
+  },
+
+  exportarHistorialExcel: async (desde: string, hasta: string) => {
+    const authStr = localStorage.getItem("ecotacna_auth");
+    let token = "";
+    if (authStr) {
+      try {
+        const auth = JSON.parse(authStr);
+        if (auth && auth.token) token = auth.token;
+      } catch (e) {
+        console.warn("Error leyendo auth storage local", e);
+      }
+    }
+
+    const { BASE_URL } = await import("./apiClient");
+    const response = await fetch(`${BASE_URL}/recolector/solicitudes/exportar?desde=${desde}&hasta=${hasta}`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error("No se pudo exportar el historial de solicitudes.");
+    }
+    return response.blob();
   }
 };

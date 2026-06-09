@@ -210,6 +210,23 @@ export default function EmpresaDashboard() {
                     </div>
                   </div>
                 </div>
+                
+                <div className="mt-2 p-3 bg-primary/5 rounded-md border border-primary/20 text-sm">
+                  <p className="font-semibold text-primary mb-1">Tu oferta</p>
+                  {tracking.precioOfertadoPorLitro != null ? (
+                    <>
+                      <p className="text-foreground/90">S/ {Number(tracking.precioOfertadoPorLitro).toFixed(2)} por litro</p>
+                      <p className="text-muted-foreground font-medium">
+                        Estimado: S/ {tracking.montoEstimado != null ? Number(tracking.montoEstimado).toFixed(2) : "0.00"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground italic">Precio no registrado</p>
+                      <p className="text-muted-foreground italic">Monto no disponible</p>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-3 p-3 bg-gradient-soft rounded-lg">
@@ -248,7 +265,7 @@ export default function EmpresaDashboard() {
                   <TableCell>{solicitud.fechaProgramadaTexto}</TableCell>
                   <TableCell className="font-mono">{solicitud.volumenAproximado.toFixed(2)} L</TableCell>
                   <TableCell>{solicitud.estado}</TableCell>
-                  <TableCell>{solicitud.direccionRecojo || "No registrado"}</TableCell>
+                  <TableCell>{solicitud.direccion || "No registrado"}</TableCell>
                 </TableRow>
               ))
             )}

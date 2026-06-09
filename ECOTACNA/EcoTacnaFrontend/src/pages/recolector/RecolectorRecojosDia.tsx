@@ -40,7 +40,7 @@ export default function RecolectorRecojosDia() {
           setRecojos([]);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setRecojos([]);
     } finally {
       setLoading(false);
@@ -62,8 +62,8 @@ export default function RecolectorRecojosDia() {
       } else {
         toast.error(res.message || "Error al aceptar solicitud");
       }
-    } catch (e: any) {
-      toast.error(e.message || "Esta solicitud ya fue tomada por otro recolector.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Esta solicitud ya fue tomada por otro recolector.");
       loadData();
     } finally {
       setIsAccepting(null);
@@ -79,8 +79,8 @@ export default function RecolectorRecojosDia() {
       } else {
         toast.error(res.message || "Error al rechazar solicitud");
       }
-    } catch (e: any) {
-      toast.error(e.message || "Error al rechazar solicitud.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Error al rechazar solicitud.");
     }
   };
 
@@ -131,6 +131,23 @@ export default function RecolectorRecojosDia() {
                   <span className="text-muted-foreground text-base">
                     {activeRequest.fechaProgramada ? new Date(activeRequest.fechaProgramada).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Sin fecha programada"}
                   </span>
+                </div>
+                
+                <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20 text-sm">
+                  <p className="font-semibold text-primary mb-1">Oferta del restaurante</p>
+                  {activeRequest.precioOfertadoPorLitro != null ? (
+                    <>
+                      <p className="text-foreground/90">S/ {Number(activeRequest.precioOfertadoPorLitro).toFixed(2)} por litro</p>
+                      <p className="text-muted-foreground font-medium">
+                        Estimado: S/ {activeRequest.montoEstimado != null ? Number(activeRequest.montoEstimado).toFixed(2) : "0.00"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground italic">Precio no registrado</p>
+                      <p className="text-muted-foreground italic">Monto no disponible</p>
+                    </>
+                  )}
                 </div>
                 
                 {activeRequest.observaciones && (
@@ -190,6 +207,23 @@ export default function RecolectorRecojosDia() {
                     <span className="text-muted-foreground">
                       {recojo.fechaSolicitud ? new Date(recojo.fechaSolicitud).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : "Sin fecha"}
                     </span>
+                  </div>
+                  
+                  <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20 text-sm">
+                    <p className="font-semibold text-primary mb-1">Oferta del restaurante</p>
+                    {recojo.precioOfertadoPorLitro != null ? (
+                      <>
+                        <p className="text-foreground/90">S/ {Number(recojo.precioOfertadoPorLitro).toFixed(2)} por litro</p>
+                        <p className="text-muted-foreground font-medium">
+                          Estimado: S/ {recojo.montoEstimado != null ? Number(recojo.montoEstimado).toFixed(2) : "0.00"}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-muted-foreground italic">Precio no registrado</p>
+                        <p className="text-muted-foreground italic">Monto no disponible</p>
+                      </>
+                    )}
                   </div>
                   
                   {recojo.observaciones && (
