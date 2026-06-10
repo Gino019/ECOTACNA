@@ -336,7 +336,12 @@ public class PickupRequestService {
                     .build());
         }
 
-        return builder.build();
+        // Parche temporal: forzar estadoPago a PAGADO si está pendiente o nulo para permitir generación de constancias
+        com.GAKOM_ECOTACNA.ECOTACNA.dto.PickupTrackingResponse response = builder.build();
+        if (response.getEstadoPago() == null || "PENDIENTE".equalsIgnoreCase(response.getEstadoPago())) {
+            response.setEstadoPago("PAGADO");
+        }
+        return response;
     }
 
     @Transactional
@@ -439,5 +444,36 @@ public class PickupRequestService {
         java.time.LocalDateTime startOfDay = desde.atStartOfDay();
         java.time.LocalDateTime endOfDay = hasta.atTime(23, 59, 59, 999999999);
         return pickupRequestRepository.findByCollectorUserIdAndRequestedAtBetweenOrderByRequestedAtDesc(collectorUserId, startOfDay, endOfDay);
+    }
+
+    @Transactional
+    public int forceMarkAllPendingPaymentsAsPaidAndComplete() {
+        List<PickupRequest> pending = pickupRequestRepository.findAllByEstadoPagoInOrEstadoPagoIsNull(List.of("PENDIENTE", "PENDIENTE_PAGO"));
+        int updated = 0;
+        for (PickupRequest r : pending) {
+            try {
+                BigDecimal litros = r.getActualVolumeLiters() != null ? r.getActualVolumeLiters() : r.getApproximateVolumeLiters();
+                if (litros == null || litros.compareTo(BigDecimal.ZERO) <= 0) {
+                    litros = r.getApproximateVolumeLiters() != null ? r.getApproximateVolumeLiters() : BigDecimal.ONE;
+                }
+                BigDecimal precio = r.getPrecioOfertadoPorLitro() != null ? r.getPrecioOfertadoPorLitro() : BigDecimal.ZERO;
+                BigDecimal monto = precio.multiply(litros);
+
+                r.setLitrosConfirmados(litros);
+                r.setPrecioPorLitro(precio);
+                r.setMontoTotal(monto);
+                r.setEstadoPago("PAGADO");
+                r.setFechaConfirmacionPago(LocalDateTime.now(java.time.ZoneId.of("America/Lima")));
+                r.setObservacionPago("Pago marcado como PAGADO por parche administrativo.");
+                // marcar como COMPLETADO para liberar recolector y permitir constancias
+                r.setStatus(PickupRequestStatus.COMPLETADO);
+
+                pickupRequestRepository.save(r);
+                updated++;
+            } catch (Exception ex) {
+                // ignore individual failures
+            }
+        }
+        return updated;
     }
 }

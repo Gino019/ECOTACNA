@@ -36,4 +36,12 @@ public class AdminPickupController {
         return ResponseEntity.ok(new ApiResponse<>(true, "Solicitud asignada al recolector",
                 ModelMapper.toPickupRequestResponse(collection)));
     }
+
+    @PostMapping("/force-mark-payments-paid")
+    public ResponseEntity<ApiResponse<Integer>> forceMarkPaymentsPaid(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        // Only admin role should reach this endpoint (security layer handles it)
+        int count = pickupRequestService.forceMarkAllPendingPaymentsAsPaidAndComplete();
+        return ResponseEntity.ok(new ApiResponse<>(true, "Pagos pendientes marcados como PAGADO y solicitudes completadas", count));
+    }
 }
