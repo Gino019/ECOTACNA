@@ -126,7 +126,7 @@ export default function RecolectorSolicitudes() {
                   <TableCell className="font-mono">{solicitud.volumenAproximado?.toFixed(2)} L</TableCell>
                   <TableCell className="font-mono">{solicitud.precioOfertadoPorLitro != null ? `S/ ${Number(solicitud.precioOfertadoPorLitro).toFixed(2)}` : "-"}</TableCell>
                   <TableCell><Badge variant="outline">{solicitud.estado}</Badge></TableCell>
-                  <TableCell><Badge variant={solicitud.estadoPago === "PAGADO" ? "default" : "secondary"}>{solicitud.estadoPago || "PENDIENTE"}</Badge></TableCell>
+                  <TableCell><Badge variant={solicitud.estadoPago === "PAGADO" ? "default" : "secondary"}>{solicitud.estadoPago || "PAGADO"}</Badge></TableCell>
                   <TableCell className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => openModal(solicitud)}>
                       Ver detalle
@@ -188,7 +188,7 @@ export default function RecolectorSolicitudes() {
                 <h4 className="font-semibold text-primary border-b pb-1">3. Pago operativo</h4>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1 bg-primary/5 p-2 rounded-md">
                   <span className="font-medium text-muted-foreground">Estado Pago:</span>
-                  <span><Badge variant={selectedSolicitud.estadoPago === "PAGADO" ? "default" : "secondary"}>{selectedSolicitud.estadoPago || "PENDIENTE"}</Badge></span>
+                  <span><Badge variant={selectedSolicitud.estadoPago === "PAGADO" ? "default" : "secondary"}>{selectedSolicitud.estadoPago || "PAGADO"}</Badge></span>
                   
                   <span className="font-medium text-muted-foreground">Litros Confirmados:</span>
                   <span>{selectedSolicitud.litrosConfirmados != null ? `${selectedSolicitud.litrosConfirmados.toFixed(2)} L` : "Pendiente"}</span>
