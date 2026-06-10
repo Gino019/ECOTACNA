@@ -114,6 +114,29 @@ public class PickupRequestService {
 
         request.setActualVolumeLiters(actualVolume);
         request.setCollectedAt(LocalDateTime.now());
+        // Si el pago está pendiente, asumimos pago operativo en sitio y completamos la solicitud
+        if (request.getEstadoPago() == null || "PENDIENTE".equalsIgnoreCase(request.getEstadoPago())) {
+            BigDecimal precioAplicado = request.getPrecioOfertadoPorLitro();
+            if (precioAplicado == null || precioAplicado.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException("No se puede completar el recojo porque la solicitud no tiene precio ofertado registrado.");
+            }
+            BigDecimal montoTotal = actualVolume.multiply(precioAplicado);
+
+            request.setLitrosConfirmados(actualVolume);
+            request.setPrecioPorLitro(precioAplicado);
+            request.setMontoTotal(montoTotal);
+            request.setEstadoPago("PAGADO");
+            request.setFechaConfirmacionPago(LocalDateTime.now(java.time.ZoneId.of("America/Lima")));
+            request.setObservacionPago("Pago confirmado por recolector al momento del recojo.");
+            request.setStatus(PickupRequestStatus.COMPLETADO);
+            request = pickupRequestRepository.save(request);
+
+            auditLogService.log(collector, collector.getEmail(), "SOLICITUD_RECOGIDA_Y_PAGO_OPERATIVO",
+                    "Solicitud #" + id + " recogida y pagada operativamente. Volumen real: " + actualVolume + " litros. Total: S/ " + montoTotal, ipAddress);
+            return request;
+        }
+
+        // Si ya había pago confirmado previamente, solo marcamos como recogido
         request.setStatus(PickupRequestStatus.RECOGIDO);
         request = pickupRequestRepository.save(request);
 
