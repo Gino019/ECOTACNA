@@ -50,7 +50,8 @@ export default function AdminEmpresas() {
       toast.success("Empresa aprobada correctamente");
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Error al aprobar la empresa");
+      const msg = err?.message || err?.response?.data?.message || "Error al aprobar la empresa";
+      toast.error(msg);
     } finally {
       setActionLoading(prev => ({ ...prev, [id]: false }));
     }
@@ -64,14 +65,17 @@ export default function AdminEmpresas() {
       toast.success("Empresa rechazada correctamente");
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Error al rechazar la empresa");
+      const msg = err?.message || err?.response?.data?.message || "Error al rechazar la empresa";
+      toast.error(msg);
     } finally {
       setActionLoading(prev => ({ ...prev, [id]: false }));
     }
   };
 
-  const pendientes = data.filter((e: any) => !e.verificada || e.estado?.toString().toUpperCase() === "PENDIENTE");
-  const activas    = data.filter((e: any) => e.verificada || ["ACTIVA", "ACTIVO", "REGISTRADA", "REGISTRADO"].includes(e.estado?.toString().toUpperCase()));
+  // Use explicit `estado` values returned by backend. Avoid relying on `verificada` which
+  // may not be consistently present in all responses.
+  const pendientes = data.filter((e: any) => (e.estado || "").toString().toUpperCase() === "PENDIENTE");
+  const activas    = data.filter((e: any) => ["ACTIVA", "ACTIVO", "REGISTRADA", "REGISTRADO"].includes((e.estado || "").toString().toUpperCase()));
   const litros     = data.reduce((t: number, e: any) => t + Number(e.litros ?? 0), 0);
 
   return (
