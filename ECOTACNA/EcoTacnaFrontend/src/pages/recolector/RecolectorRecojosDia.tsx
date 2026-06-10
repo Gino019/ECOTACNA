@@ -159,11 +159,6 @@ export default function RecolectorRecojosDia() {
               </div>
             </div>
             
-            <div className="p-4 bg-muted/30 border-t border-border flex justify-center">
-              <Button asChild className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
-                <Link to="/recolector/mapa-operativo">Ver en mapa operativo</Link>
-              </Button>
-            </div>
           </Card>
         </div>
       ) : recojos.length === 0 ? (
