@@ -3,7 +3,17 @@ const resolveBaseUrl = () => {
   if (configuredUrl) return configuredUrl.replace(/\/$/, "");
 
   if (typeof window === "undefined") return "/ecotacna/api";
-  return `${window.location.protocol}//${window.location.hostname}:8082/ecotacna/api`;
+
+  // Local development backend runs on localhost:8082.
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    return `${window.location.protocol}//${window.location.hostname}:8082/ecotacna/api`;
+  }
+
+  // In production, if no BASE URL is configured, use a relative path.
+  console.warn(
+    "VITE_API_BASE_URL is not set. Falling back to /ecotacna/api. Configure VITE_API_BASE_URL for production deployments."
+  );
+  return "/ecotacna/api";
 };
 
 export const BASE_URL = resolveBaseUrl();

@@ -241,28 +241,9 @@ public class CaptchaService {
 
     private String toBase64Png(BufferedImage img) {
         try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            // Usar JPEG con compresión agresiva para reducir tamaño significativamente
-            Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
-            if (writers.hasNext()) {
-                ImageWriter writer = writers.next();
-                try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
-                    writer.setOutput(ios);
-                    
-                    // Configurar parámetros de compresión JPEG
-                    var jpegParams = writer.getDefaultWriteParam();
-                    jpegParams.setCompressionMode(javax.imageio.ImageWriteParam.MODE_EXPLICIT);
-                    jpegParams.setCompressionQuality(0.75f); // 75% de calidad (balance tamaño/calidad)
-                    
-                    writer.write(null, new javax.imageio.IIOImage(img, null, null), jpegParams);
-                    writer.dispose();
-                }
-            } else {
-                // Fallback a método simple si no hay writer disponible
-                ImageIO.write(img, "jpg", os);
-            }
-            
+            ImageIO.write(img, "png", os);
             byte[] bytes = os.toByteArray();
-            return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(bytes);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
             throw new RuntimeException("Error al serializar imagen de captcha en Base64", e);
         }
