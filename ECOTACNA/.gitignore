@@ -1,0 +1,27 @@
+
+# Residuos Ecotacna Limpieza
+node_modules/
+dist/
+target/
+*.class
+*.log
+*.tmp
+*.bak
+*.pdf
+*.xlsx
+token.txt
+admin_token.txt
+test_token*.txt
+login.json
+usuarios.json
+empresas*.json
+solicitudes*.json
+req.json
+ruc_test.txt
+ruc_verbose.txt
+api_test*.ps1
+db_clean.js
+db_inspect.js
+query_pickup.js
+test_endpoint.js
+test_script.js

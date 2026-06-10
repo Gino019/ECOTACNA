@@ -1,0 +1,97 @@
+=========================================================
+      DATOS PARA PRUEBA DE REGISTRO - ECOTACNA
+=========================================================
+(Estos datos funcionan directamente con el backend actual)
+
+---------------------------------------------------------
+CASO 1: REGISTRO DE RESTAURANTE / GENERADOR
+(Al aprobarse, redirige al plan de S/ 20 y prueba gratis)
+---------------------------------------------------------
+RUC a buscar      : 20605432198
+Correo electrónico: gerencia@sabor.com
+Teléfono          : 952111222
+Persona de contacto: Carlos Mamani
+Cargo (Opcional)  : Gerente
+Referencia (Opc.) : A media cuadra de la plaza
+
+---------------------------------------------------------
+CASO 2: REGISTRO DE RESTAURANTE / GENERADOR (Alternativo)
+(Al aprobarse, redirige al plan de S/ 20 y prueba gratis)
+---------------------------------------------------------
+RUC a buscar      : 20123456789
+Correo electrónico: contacto@elpuerto.com
+Teléfono          : 952444555
+Persona de contacto: Maria Rodriguez
+Cargo (Opcional)  : Administradora
+Referencia (Opc.) : Frente al mar
+
+---------------------------------------------------------
+CASO 3: REGISTRO DE EMPRESA RECOLECTORA
+(Al aprobarse, redirige al plan de S/ 250 y checkout Culqi)
+---------------------------------------------------------
+RUC a buscar      : 20543210987
+Correo electrónico: operaciones@verde.com
+Teléfono          : 952888999
+Persona de contacto: Luis Perez
+Cargo (Opcional)  : Jefe de Operaciones
+Referencia (Opc.) : Parque Industrial
+
+---------------------------------------------------------
+NUEVO CASO 4: GENERADOR (Pollería La Tacneñita S.A.C.)
+---------------------------------------------------------
+RUC a buscar      : 20611111111
+Correo electrónico: contacto@latacnenita.com
+Teléfono          : 952111333
+Persona de contacto: Maria Quispe
+Cargo (Opcional)  : Administradora
+Referencia (Opc.) : Av. Leguía 456
+
+---------------------------------------------------------
+NUEVO CASO 5: GENERADOR (Restaurante Don Aceite S.A.C.)
+---------------------------------------------------------
+RUC a buscar      : 20622222222
+Correo electrónico: contacto@donaceite.com
+Teléfono          : 952222444
+Persona de contacto: Juan Gomez
+Cargo (Opcional)  : Propietario
+Referencia (Opc.) : Av. Industrial 780
+
+---------------------------------------------------------
+NUEVO CASO 6: GENERADOR (Cevichería Mar Verde S.A.C.)
+---------------------------------------------------------
+RUC a buscar      : 20633333333
+Correo electrónico: contacto@marverde.com
+Teléfono          : 952333555
+Persona de contacto: Elena Flores
+Cargo (Opcional)  : Gerente
+Referencia (Opc.) : Av. San Martín 920
+
+---------------------------------------------------------
+NUEVO CASO 7: RECOLECTOR (Recolectora Sur Verde S.R.L.)
+---------------------------------------------------------
+RUC a buscar      : 20555555555
+Correo electrónico: contacto@surverde.com
+Teléfono          : 952555777
+Persona de contacto: Roberto Diaz
+Cargo (Opcional)  : Administrador
+Referencia (Opc.) : Av. Circunvalación 300
+
+---------------------------------------------------------
+NUEVO CASO 8: RECOLECTOR (EcoRecolectores Tacna S.A.C.)
+---------------------------------------------------------
+RUC a buscar      : 20566666666
+Correo electrónico: contacto@ecorecolectores.com
+Teléfono          : 952666888
+Persona de contacto: Sofia Mamani
+Cargo (Opcional)  : Gerente General
+Referencia (Opc.) : Av. Municipal 150
+
+=========================================================
+NOTAS IMPORTANTES:
+=========================================================
+1. Si un registro te lanza error al final, es probable que ya hayas usado 
+   ese mismo correo anteriormente. Si te sucede, solo cambia el correo 
+   (ej. gerencia2@sabor.com) y vuelve a intentar.
+   
+2. La contraseña de acceso para iniciar sesión de cualquiera de estos 
+   usuarios se guardará automáticamente como su mismo número de RUC.

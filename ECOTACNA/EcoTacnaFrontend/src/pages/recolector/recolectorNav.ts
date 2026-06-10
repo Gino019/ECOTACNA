@@ -1,0 +1,14 @@
+import { LayoutDashboard, Package, FileCheck2, Settings, Truck } from "lucide-react";
+
+export const recolectorNav = [
+  { to: "/recolector/resumen", label: "Resumen", icon: LayoutDashboard },
+  { to: "/recolector/recojos-dia", label: "Recojos del día", icon: Truck },
+  { to: "/recolector/solicitudes", label: "Historial de recojos", icon: FileCheck2 },
+  { to: "/recolector/transportes", label: "Mis unidades", icon: Truck },
+  { to: "/recolector/mi-empresa", label: "Mi empresa", icon: Settings },
+];
+
+export const recolectorUser = {
+  name: "Recolector",
+  sub: "No autenticado",
+};
