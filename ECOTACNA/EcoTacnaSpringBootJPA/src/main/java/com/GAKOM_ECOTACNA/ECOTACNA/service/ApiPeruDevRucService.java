@@ -44,17 +44,20 @@ public class ApiPeruDevRucService {
     public RucLookupResponse consultarRuc(String ruc) {
         validarRuc(ruc);
         if (!isApiMode() || apiToken == null || apiToken.isBlank()) {
-            logger.info("Usando RUC simulado local para el RUC: {}", ruc);
-            return obtenerRucSimulado(ruc);
-        }
-        try {
-            return consultarApiPeru(ruc);
-        } catch (ResourceNotFoundException | ExternalProviderException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            logger.warn("Consulta real del RUC ({}) falló, usando fallback simulado. Detalle: {}", ruc, ex.getMessage());
-            return obtenerRucSimulado(ruc);
-        }
+                logger.info("Modo simulado: Sin token API configurado. RUC: {}", ruc);
+                return obtenerRucSimulado(ruc);
+            }
+            try {
+                logger.info("Intentando consultar RUC {} mediante API", ruc);
+                return consultarApiPeru(ruc);
+            } catch (ResourceNotFoundException | ExternalProviderException ex) {
+                logger.warn("Error en consulta API para RUC {}: {}", ruc, ex.getMessage());
+                logger.info("Usando fallback simulado para RUC: {}", ruc);
+                return obtenerRucSimulado(ruc);
+            } catch (Exception ex) {
+                logger.warn("Consulta real del RUC ({}) falló, usando fallback simulado. Detalle: {}", ruc, ex.getMessage());
+                return obtenerRucSimulado(ruc);
+            }
     }
 
     private boolean isApiMode() {
