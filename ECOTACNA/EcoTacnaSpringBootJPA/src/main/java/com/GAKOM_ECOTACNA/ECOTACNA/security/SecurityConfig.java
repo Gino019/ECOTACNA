@@ -32,6 +32,10 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        // Allow admin endpoints in local testing when SPRING_PROFILES_ACTIVE contains 'local'
+        String active = System.getenv("SPRING_PROFILES_ACTIVE");
+        boolean localProfile = active != null && active.contains("local");
+
         http
                 .cors(cors -> cors.configurationSource(request -> {
                     var corsConfig = new org.springframework.web.cors.CorsConfiguration();
@@ -42,7 +46,14 @@ public class SecurityConfig {
                 }))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    if (localProfile) {
+                        auth.requestMatchers("/api/admin/**").permitAll();
+                    } else {
+                        auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
+                    }
+
+                    auth
                         .requestMatchers("/api/health", "/api/health/**").permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/registration-status/**").permitAll()
                         .requestMatchers("/api/ruc/**").permitAll()
@@ -52,10 +63,9 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/empresa/**").hasRole("GENERADOR")
                         .requestMatchers("/api/recolector/**").hasRole("RECOLECTOR")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated();
+                    })
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Repository
 public interface PickupRequestRepository extends JpaRepository<PickupRequest, Long> {
@@ -81,4 +82,11 @@ public interface PickupRequestRepository extends JpaRepository<PickupRequest, Lo
             ORDER BY pr.requestedAt DESC
             """)
     List<PickupRequest> findByCollectorUserIdAndRequestedAtBetweenOrderByRequestedAtDesc(@Param("collectorUserId") Long collectorUserId, @Param("desde") java.time.LocalDateTime desde, @Param("hasta") java.time.LocalDateTime hasta);
+
+        @Query("""
+                        SELECT pr FROM PickupRequest pr JOIN FETCH pr.company
+                        WHERE (pr.estadoPago IN (:values) OR pr.estadoPago IS NULL)
+                        ORDER BY pr.requestedAt DESC
+                        """)
+        List<PickupRequest> findAllByEstadoPagoInOrEstadoPagoIsNull(@Param("values") List<String> values);
 }

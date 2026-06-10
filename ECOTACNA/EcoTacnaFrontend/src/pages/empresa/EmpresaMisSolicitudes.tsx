@@ -192,13 +192,13 @@ export default function EmpresaMisSolicitudes() {
                   <span><Badge variant={selectedSolicitud.estadoPago === "PAGADO" ? "default" : "secondary"}>{selectedSolicitud.estadoPago || "PAGADO"}</Badge></span>
                   
                   <span className="font-medium text-muted-foreground">Litros Confirmados:</span>
-                  <span>{selectedSolicitud.litrosConfirmados != null ? `${selectedSolicitud.litrosConfirmados.toFixed(2)} L` : "Pendiente"}</span>
+                  <span>{selectedSolicitud.litrosConfirmados != null ? `${selectedSolicitud.litrosConfirmados.toFixed(2)} L` : "-"}</span>
                   
                   <span className="font-medium text-muted-foreground">Precio Aplicado:</span>
-                  <span>{selectedSolicitud.precioPorLitro != null ? `S/ ${Number(selectedSolicitud.precioPorLitro).toFixed(2)} / L` : "Pendiente"}</span>
+                  <span>{selectedSolicitud.precioPorLitro != null ? `S/ ${Number(selectedSolicitud.precioPorLitro).toFixed(2)} / L` : "-"}</span>
                   
                   <span className="font-medium text-muted-foreground">Monto Final:</span>
-                  <span className="font-bold text-primary">{selectedSolicitud.montoTotal != null ? `S/ ${Number(selectedSolicitud.montoTotal).toFixed(2)}` : "Pendiente"}</span>
+                  <span className="font-bold text-primary">{selectedSolicitud.montoTotal != null ? `S/ ${Number(selectedSolicitud.montoTotal).toFixed(2)}` : "-"}</span>
                   
                   {selectedSolicitud.fechaConfirmacionPago && (
                     <>
