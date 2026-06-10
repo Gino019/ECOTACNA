@@ -5,6 +5,8 @@ import { Check, X, MapPin, Calendar, Droplet, User, Phone } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { getStoredAuth } from "@/services/authStorage";
 import { recolectorApi } from "@/services/recolectorApi";
@@ -18,6 +20,10 @@ export default function RecolectorRecojosDia() {
   const [activeRequest, setActiveRequest] = useState<PickupRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState<number | null>(null);
+  const [isStartingRoute, setIsStartingRoute] = useState(false);
+  const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
+  const [litrosRecolectados, setLitrosRecolectados] = useState<number | "">("");
+  const [pickupError, setPickupError] = useState<string>("");
 
   const loadData = async () => {
     setLoading(true);
@@ -82,6 +88,52 @@ export default function RecolectorRecojosDia() {
       }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Error al rechazar solicitud.");
+    }
+  };
+
+  const handleIniciarRuta = async () => {
+    if (!activeRequest) return;
+    setIsStartingRoute(true);
+    try {
+      const res = await recolectorApi.iniciarRuta(activeRequest.id);
+      if (res.success && res.data) {
+        toast.success("Recojo marcado como EN_RUTA.");
+        setActiveRequest(res.data);
+      } else {
+        toast.error(res.message || "Error al iniciar ruta.");
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Error al iniciar ruta.");
+      loadData();
+    } finally {
+      setIsStartingRoute(false);
+    }
+  };
+
+  const handleConfirmarRecojo = async () => {
+    if (!activeRequest || typeof litrosRecolectados !== "number" || litrosRecolectados <= 0) {
+      setPickupError("Ingresa litros válidos mayores a 0.");
+      return;
+    }
+
+    setPickupError("");
+    setIsConfirmingPickup(true);
+    try {
+      const res = await recolectorApi.confirmarRecojo(activeRequest.id, litrosRecolectados);
+      if (res.success && res.data) {
+        toast.success("Recojo confirmado. Puedes tomar otra solicitud.");
+        setActiveRequest(null);
+        setRecojos([]);
+        setLitrosRecolectados("");
+        loadData();
+      } else {
+        toast.error(res.message || "Error al confirmar recojo.");
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Error al confirmar recojo.");
+      loadData();
+    } finally {
+      setIsConfirmingPickup(false);
     }
   };
 
@@ -158,7 +210,49 @@ export default function RecolectorRecojosDia() {
                 )}
               </div>
             </div>
-            
+
+            <div className="p-4 bg-muted/30 border-t border-border">
+              {activeRequest.estado === "PROGRAMADO" ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">Marca la ruta como iniciada cuando salgas hacia el recojo.</p>
+                  <Button
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={handleIniciarRuta}
+                    disabled={isStartingRoute}
+                  >
+                    {isStartingRoute ? "Iniciando ruta..." : "Marcar como EN_RUTA"}
+                  </Button>
+                </div>
+              ) : activeRequest.estado === "EN_RUTA" ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">Confirma el recojo cuando el aceite haya sido cargado.</p>
+                  {pickupError && <p className="text-sm text-destructive">{pickupError}</p>}
+                  <div className="grid gap-3">
+                    <div>
+                      <Label htmlFor="litros-recolectados">Litros recolectados</Label>
+                      <Input
+                        id="litros-recolectados"
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        placeholder="Ej. 35"
+                        value={litrosRecolectados}
+                        onChange={(e) => setLitrosRecolectados(e.target.value === "" ? "" : Number(e.target.value))}
+                      />
+                    </div>
+                    <Button
+                      className="w-full bg-success text-success-foreground hover:bg-success/90"
+                      onClick={handleConfirmarRecojo}
+                      disabled={isConfirmingPickup}
+                    >
+                      {isConfirmingPickup ? "Confirmando..." : "Confirmar recojo"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">El recojo ya fue registrado. Espera la actualización para ver nuevas solicitudes.</p>
+              )}
+            </div>
           </Card>
         </div>
       ) : recojos.length === 0 ? (
